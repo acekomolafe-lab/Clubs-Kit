@@ -1,0 +1,2337 @@
+﻿// FMSuperScout — Club Kit Colours Export Page
+'use strict';
+const $ = id => document.getElementById(id);
+
+async function tauriInvoke(cmd, args) {
+  if (typeof window !== 'undefined' && window.__TAURI__ && window.__TAURI__.core && typeof window.__TAURI__.core.invoke === 'function') {
+    return window.__TAURI__.core.invoke(cmd, args);
+  }
+  if (cmd === 'get_sponsor_groupings') {
+    const configPath = args?.config_path || args?.configPath || DEFAULT_SPONSOR_CONFIG_PATH;
+    const res = await fetch('/api/sponsor-groupings?path=' + encodeURIComponent(configPath));
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Sponsor config request failed (${res.status})`);
+    return body;
+  }
+  if (cmd === 'save_sponsor_groupings') {
+    const configPath = args?.config_path || args?.configPath || DEFAULT_SPONSOR_CONFIG_PATH;
+    const res = await fetch('/api/sponsor-groupings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: configPath, names: args?.names || [], assignments: args?.assignments || {} })
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Sponsor config request failed (${res.status})`);
+    return body;
+  }
+  if (cmd === 'get_sponsor_assignments') {
+    const configPath = args?.config_path || args?.configPath || DEFAULT_SPONSOR_CONFIG_PATH;
+    const res = await fetch('/api/sponsor-assignments?path=' + encodeURIComponent(configPath));
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `Sponsor assignment request failed (${res.status})`);
+    return body;
+  }
+  if (cmd === 'get_clubs') {
+    try {
+      const res = await fetch('/api/clubs');
+      if (res.ok) return await res.json();
+    } catch(e) {}
+    // Fallback if fetch fails:
+    return { clubs: [] };
+  }
+  throw new Error('Unknown command: ' + cmd);
+}
+
+const KIT_KEY = 'fmss_kitcolors_v8';
+const KIT_KEY_V2 = 'fmss_kitcolors_v2';
+const KIT_KEY_LEGACY = 'fmss_kitcolors';
+const CUSTOM_KEY = 'fmss_kitcolors_customized_v1';
+const STYLE_KEY = 'fmss_kitstyles_user_v2';
+
+const CSV_DIR_KEY = 'fmss_kitbasher_csv_dir';
+const CSV_NAME_KEY = 'fmss_kitbasher_csv_name';
+const LOGO_DIR_KEY = 'fmss_kitbasher_logo_dir';
+const PROMPT_SAVE_KEY = 'fmss_kitbasher_prompt_save';
+const SPONSOR_CONFIG_KEY = 'fmss_kitbasher_sponsor_config';
+
+const DEFAULT_CSV_DIR = 'D:\\KitbasherLegacy v0.8\\TeamList';
+const DEFAULT_CSV_NAME = 'teams.csv';
+const DEFAULT_LOGO_DIR = 'C:\\Users\\aceik\\AppData\\Roaming\\GeneratedKits\\Badges';
+const DEFAULT_SPONSOR_CONFIG_PATH = 'D:\\KitbasherLegacy v0.8\\Sponsors\\sponsorConfig.json';
+
+function getCsvDir() {
+  const saved = localStorage.getItem(CSV_DIR_KEY);
+  return (saved && saved.trim()) ? saved.trim() : DEFAULT_CSV_DIR;
+}
+
+function setCsvDir(dir) {
+  if (dir && dir.trim()) {
+    localStorage.setItem(CSV_DIR_KEY, dir.trim());
+  } else {
+    localStorage.removeItem(CSV_DIR_KEY);
+  }
+  updateExportButtonTooltip();
+}
+
+function getCsvFilename() {
+  const saved = localStorage.getItem(CSV_NAME_KEY);
+  return (saved && saved.trim()) ? saved.trim() : DEFAULT_CSV_NAME;
+}
+
+function setCsvFilename(name) {
+  if (name && name.trim()) {
+    let clean = name.trim();
+    if (!clean.toLowerCase().endsWith('.csv')) clean += '.csv';
+    localStorage.setItem(CSV_NAME_KEY, clean);
+  } else {
+    localStorage.removeItem(CSV_NAME_KEY);
+  }
+  updateExportButtonTooltip();
+}
+
+function getPromptSave() {
+  const saved = localStorage.getItem(PROMPT_SAVE_KEY);
+  return saved === null ? true : saved === 'true';
+}
+
+function setPromptSave(val) {
+  localStorage.setItem(PROMPT_SAVE_KEY, Boolean(val) ? 'true' : 'false');
+}
+
+function getSponsorConfigPath() {
+  const saved = localStorage.getItem(SPONSOR_CONFIG_KEY);
+  return (saved && saved.trim()) ? saved.trim() : DEFAULT_SPONSOR_CONFIG_PATH;
+}
+
+function setSponsorConfigPath(filePath) {
+  if (filePath && filePath.trim()) {
+    localStorage.setItem(SPONSOR_CONFIG_KEY, filePath.trim());
+  } else {
+    localStorage.removeItem(SPONSOR_CONFIG_KEY);
+  }
+}
+
+function getLogoDir() {
+  const saved = localStorage.getItem(LOGO_DIR_KEY);
+  return (saved && saved.trim()) ? saved.trim() : DEFAULT_LOGO_DIR;
+}
+
+function setLogoDir(dir) {
+  if (dir && dir.trim()) {
+    localStorage.setItem(LOGO_DIR_KEY, dir.trim());
+  } else {
+    localStorage.removeItem(LOGO_DIR_KEY);
+  }
+  updateBadgeButtonTooltip();
+}
+
+function updateBadgeButtonTooltip() {
+  const btn = $('btn-badge-location');
+  if (btn) {
+    btn.title = `Club Badges Folder:\n${getLogoDir()}\n(Click to enter or change folder)`;
+  }
+}
+
+function updateExportButtonTooltip() {
+  const btn = $('btn-export-as');
+  if (btn) {
+    btn.title = `Save CSV with chosen file name and location\nDefault: ${getCsvDir()}\\${getCsvFilename()}`;
+  }
+}
+
+const SPONSOR_KEY = 'fmss_kitbasher_sponsors';
+const TEMPLATE_KEY = 'fmss_kitbasher_templates';
+const SHORTNAME_KEY = 'fmss_kitbasher_shortnames';
+
+let clubSponsors = {};
+let clubTemplates = {};
+let clubShortNames = {};
+let sponsorGroupings = [];
+
+function loadTableCustoms() {
+  try {
+    const sp = localStorage.getItem(SPONSOR_KEY);
+    if (sp) clubSponsors = JSON.parse(sp) || {};
+  } catch(e) {}
+  try {
+    const tm = localStorage.getItem(TEMPLATE_KEY);
+    if (tm) clubTemplates = JSON.parse(tm) || {};
+  } catch(e) {}
+  try {
+    const sn = localStorage.getItem(SHORTNAME_KEY);
+    if (sn) clubShortNames = JSON.parse(sn) || {};
+  } catch(e) {}
+}
+
+function saveTableCustoms() {
+  try { localStorage.setItem(SPONSOR_KEY, JSON.stringify(clubSponsors)); } catch(e) {}
+  try { localStorage.setItem(TEMPLATE_KEY, JSON.stringify(clubTemplates)); } catch(e) {}
+  try { localStorage.setItem(SHORTNAME_KEY, JSON.stringify(clubShortNames)); } catch(e) {}
+}
+
+function getClubSponsor(c) {
+  const idStr = String(c.clubId || c.id || '');
+  const saved = clubSponsors[idStr];
+  if (saved) return sponsorGroupingDisplayName(saved);
+  if (c.sponsorGrouping && c.sponsorGrouping !== 'NONE') return sponsorGroupingDisplayName(c.sponsorGrouping);
+  return 'ALL';
+}
+
+function findSponsorGrouping(value) {
+  const key = String(value || '').trim().toLowerCase();
+  if (!key) return null;
+  return sponsorGroupings.find(group => {
+    const id = String(group?.id || '').trim().toLowerCase();
+    const name = String(group?.name || '').trim().toLowerCase();
+    return id === key || name === key;
+  }) || null;
+}
+
+function sponsorGroupingDisplayName(value) {
+  const grouping = findSponsorGrouping(value);
+  return grouping ? grouping.name : String(value || '').trim();
+}
+
+function sponsorGroupingId(value) {
+  const grouping = findSponsorGrouping(value);
+  return grouping && grouping.id ? String(grouping.id).trim() : String(value || '').trim();
+}
+
+async function loadSponsorConfigState() {
+  try {
+    const groupings = await tauriInvoke('get_sponsor_groupings', {
+      config_path: getSponsorConfigPath()
+    });
+    sponsorGroupings = Array.isArray(groupings) ? groupings : [];
+  } catch (err) {
+    console.warn('Could not load sponsor groupings:', err);
+    return;
+  }
+
+  try {
+    const assignments = await tauriInvoke('get_sponsor_assignments', {
+      config_path: getSponsorConfigPath()
+    });
+    if (!assignments || typeof assignments !== 'object' || Array.isArray(assignments)) return;
+    for (const [teamId, grouping] of Object.entries(assignments)) {
+      const value = sponsorGroupingDisplayName(grouping);
+      if (value && value.toLowerCase() !== 'all') clubSponsors[String(teamId)] = value;
+      else delete clubSponsors[String(teamId)];
+    }
+    saveTableCustoms();
+  } catch (err) {
+    console.warn('Could not load saved sponsor assignments:', err);
+  }
+}
+
+async function syncSponsorConfig(clubsList) {
+  const names = [...new Set(clubsList
+    .map(club => getClubSponsor(club))
+    .map(name => String(name || '').trim())
+    .filter(name => name && name !== 'ALL'))];
+  const assignments = {};
+  for (const club of clubsList) {
+    const teamId = String(club.clubId || club.id || '').trim();
+    if (teamId) assignments[teamId] = getClubSponsor(club);
+  }
+  if (!names.length && !Object.keys(assignments).length) return;
+  await tauriInvoke('save_sponsor_groupings', {
+    config_path: getSponsorConfigPath(),
+    names,
+    assignments
+  });
+  try {
+    const updatedGroupings = await tauriInvoke('get_sponsor_groupings', {
+      config_path: getSponsorConfigPath()
+    });
+    if (Array.isArray(updatedGroupings)) sponsorGroupings = updatedGroupings;
+  } catch (err) {
+    console.warn('Could not refresh sponsor groupings after saving:', err);
+  }
+}
+
+const SPONSOR_GROUP_ALIASES = {
+  england: ['uk'],
+  scotland: ['uk'],
+  wales: ['uk'],
+  northernireland: ['uk'],
+  unitedkingdom: ['uk'],
+  uk: ['uk'],
+  unitedstates: ['us'],
+  usa: ['us'],
+  american: ['us'],
+  us: ['us'],
+  saudiarabia: ['saudi'],
+  saudi: ['saudi'],
+  southkorea: ['skorea'],
+  korea: ['skorea'],
+  korearepublic: ['skorea'],
+  skorea: ['skorea'],
+  unitedarabemirates: ['uae'],
+  uae: ['uae'],
+  switzerland: ['switzerland1'],
+  switzerland1: ['switzerland1'],
+  gibraltar: ['2025gibraltar'],
+  '2025gibraltar': ['2025gibraltar']
+};
+
+function normalizeSponsorKey(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
+}
+
+function sponsorGroupingByKeys(groupings, keys) {
+  const byKey = new Map();
+  for (const group of groupings) {
+    if (!group || typeof group.name !== 'string') continue;
+    const key = normalizeSponsorKey(group.name);
+    if (key && !byKey.has(key)) byKey.set(key, group);
+  }
+
+  for (const key of keys) {
+    const group = byKey.get(normalizeSponsorKey(key));
+    if (group) return group;
+  }
+  return null;
+}
+
+function sponsorGroupingForCountry(country, groupings) {
+
+  const candidates = [];
+  const addCandidate = value => {
+    const key = normalizeSponsorKey(value);
+    if (key && !candidates.includes(key)) candidates.push(key);
+  };
+
+  const rawCountry = String(country || '').trim();
+  addCandidate(rawCountry);
+  addCandidate(displayCountry(rawCountry));
+  for (const [source, target] of Object.entries(COUNTRY_MAP)) {
+    if (normalizeSponsorKey(source) === normalizeSponsorKey(rawCountry)) {
+      addCandidate(target);
+    }
+  }
+
+  for (const candidate of [...candidates]) {
+    for (const alias of SPONSOR_GROUP_ALIASES[candidate] || []) addCandidate(alias);
+  }
+
+  return sponsorGroupingByKeys(groupings, candidates);
+}
+
+const RED_BULL_TEAM_REGEX = /\bred\s*bulls?\b|\brb\s+(?:leipzig|salzburg|bragantino|omiya)\b|\b(?:rbl|rbs)\b/i;
+
+function isRedBullClub(club) {
+  const clubId = String(club.clubId || club.id || '');
+  const names = [club.club, club.name, club.shortName, club.initials, clubShortNames[clubId]];
+  return names.some(value => RED_BULL_TEAM_REGEX.test(String(value || '')));
+}
+
+function sponsorGroupingForClub(club, groupings) {
+  if (isRedBullClub(club)) {
+    const redBullGroup = sponsorGroupingByKeys(groupings, ['Red Bull NY', 'Red Bull My', 'Red Bull'])
+      || groupings.find(group => normalizeSponsorKey(group?.name).includes('redbull'));
+    if (redBullGroup) return redBullGroup;
+  }
+  return sponsorGroupingForCountry(club.country, groupings);
+}
+
+async function autoAssignSponsorsByCountry() {
+  const button = $('btn-auto-sponsors');
+  if (!clubs.length) {
+    alert('No clubs are loaded. Load the club database first.');
+    return;
+  }
+
+  if (button) button.disabled = true;
+  const statusEl = $('status');
+  if (statusEl) statusEl.textContent = 'Reading sponsor groupings…';
+
+  try {
+    const groupings = await tauriInvoke('get_sponsor_groupings', {
+      config_path: getSponsorConfigPath()
+    });
+    if (!Array.isArray(groupings) || !groupings.length) {
+      throw new Error('The sponsor config contains no sponsor groupings.');
+    }
+    sponsorGroupings = groupings;
+
+    let assigned = 0;
+    let skipped = 0;
+    let redBullAssigned = 0;
+    let redBullGroupName = 'Red Bull NY / Red Bull My';
+    let genericAssigned = 0;
+    const genericCountries = new Set();
+
+    for (const club of clubs) {
+      const clubId = String(club.clubId || club.id || '');
+      const redBullClub = isRedBullClub(club);
+      const current = getClubSponsor(club);
+      if (!redBullClub && current && current !== 'ALL') {
+        skipped++;
+        continue;
+      }
+
+      const grouping = sponsorGroupingForClub(club, groupings);
+      if (!grouping) {
+        clubSponsors[clubId] = 'ALL';
+        genericAssigned++;
+        genericCountries.add(displayCountry(club.country) || '(No Country)');
+      } else {
+        clubSponsors[clubId] = grouping.name;
+        if (redBullClub && normalizeSponsorKey(grouping.name).includes('redbull')) {
+          redBullAssigned++;
+          redBullGroupName = grouping.name.trim() || grouping.name;
+        }
+      }
+      assigned++;
+    }
+
+    saveTableCustoms();
+    await syncSponsorConfig(clubs);
+    render();
+    const countryList = Array.from(genericCountries).sort((a, b) => a.localeCompare(b)).slice(0, 8);
+    const message = `Assigned ${assigned.toLocaleString()} sponsors; ${redBullGroupName}: ${redBullAssigned.toLocaleString()}; skipped ${skipped.toLocaleString()} existing assignments; used generic ALL for ${genericAssigned.toLocaleString()} teams.`;
+    if (statusEl) {
+      statusEl.textContent = message;
+      statusEl.style.color = '#f5d978';
+      setTimeout(() => { updateStatus(); }, 7000);
+    }
+    alert(countryList.length ? `${message}\nGeneric ALL countries: ${countryList.join(', ')}` : message);
+  } catch (err) {
+    const message = `Could not assign sponsors: ${String(err.message || err)}`;
+    if (statusEl) {
+      statusEl.textContent = message;
+      statusEl.style.color = '#ff8f8f';
+    }
+    alert(message);
+  } finally {
+    if (button) button.disabled = false;
+  }
+}
+
+async function resetSponsors() {
+  const savedCount = Object.keys(clubSponsors).length;
+  if (!confirm(`Reset ${savedCount.toLocaleString()} saved sponsor assignments?`)) return;
+
+  clubSponsors = {};
+  for (const club of clubs) {
+    if (club && Object.prototype.hasOwnProperty.call(club, 'sponsorGrouping')) {
+      delete club.sponsorGrouping;
+    }
+  }
+  saveTableCustoms();
+  render();
+  updateStatus();
+
+  try {
+    await syncSponsorConfig(clubs);
+  } catch (err) {
+    console.warn('Could not reset sponsor assignments in sponsor config:', err);
+  }
+
+  const statusEl = $('status');
+  if (statusEl) {
+    statusEl.textContent = 'Sponsor assignments reset to ALL. Click Auto Sponsors by Country to assign them again.';
+    statusEl.style.color = '#f5d978';
+  }
+}
+
+function getClubTemplate(c) {
+  const idStr = String(c.clubId || c.id || '');
+  if (clubTemplates[idStr]) return clubTemplates[idStr];
+  if (c.templateGrouping) return c.templateGrouping;
+  return 'ALL';
+}
+
+function getClubShortName(c) {
+  const idStr = String(c.clubId || c.id || '');
+  if (clubShortNames[idStr]) return clubShortNames[idStr];
+  const shouldSuffixWomen = $('chk-suffix-women') ? $('chk-suffix-women').checked : true;
+  const isW = isWomenClub(c);
+  let shortName = (c.shortName || generateShortName(c) || '').slice(0, 10).trim();
+  if (isW && shouldSuffixWomen && !/w|women/i.test(shortName)) {
+    shortName = `${shortName.slice(0, 8).trim()} W`;
+  }
+  return shortName || 'FC';
+}
+
+const VALID_STYLES = ['Plain', 'Striped', 'Hooped', 'Bicolour', 'Sleeved'];
+let kitStyles = {};
+let filterGender = 'all';
+
+const WOMEN_DIV_REGEX = /(?:\bwomen(?:'s)?\b|\bladies\b|\bf[eé]minin(?:e)?\b|\bfrauen\b|\bfemminil[ei]\b|\bfemenin[ao]\b|\bfemenil\b|\bvrouwen\b|\bdames\b|\bkvinn(?:er|ur)?\b|\bnaiset\b|\bnaisten\b|\bkvenna\b|\bmoter[uų]\b|\bsievie[sš]u\b|\b[zž]en[ay]\b|\bzhanochaya\b|\bn[oő]i\b|\bdamallsvenskan\b|\belitettan\b|\btoppserien\b|\bnwsl\b|\bwsl\b|\bw-league\b|\bfutfem\b|\biberdrola\b|\badran\b|\borlen\s+(?:ekstraliga|1\s+liga)\b|^liga\s+f\b|\bliga\s+f\s+moeve\b|\bliga\s+bpi\b|\bwk\s+league\b|\bsasol\s+league\b|\bseconde\s+ligue\b|\(w\)$|\(w\)\b|\(women\)$)/i;
+
+const WOMEN_CLUB_REGEX = /(?:\bwomen(?:'s)?\b|\bladies\b|\bf[eé]minin(?:e)?\b|\bfrauen\b|\bfemminil[ei]\b|\bfemenin[ao]\b|\bfemenil\b|\bvrouwen\b|\bkvinn(?:er|ur)?\b|\bnaisten?\b|\bkvenna\b|\bmoter[uų]\b|\bsievie[sš]u\b|\b[zž]en[ay]\b|\bwfc\b|\(w\)$|\(w\)\b|\(women\)$|\(ladies\)$)/i;
+
+const EXCLUDE_WOMEN_CLUBS = new Set([
+  'association sportive baume-les-dames',
+  'etoile sportive la ville-aux-dames'
+]);
+
+function isWomenClub(c) {
+  if (!c) return false;
+  if (typeof c.isWomen === 'boolean') return c.isWomen;
+  const name = String(c.club || c.name || '').trim();
+  if (EXCLUDE_WOMEN_CLUBS.has(name.toLowerCase())) return false;
+  const div = String(c.division || '').trim();
+  if (div && WOMEN_DIV_REGEX.test(div)) return true;
+  if (name && WOMEN_CLUB_REGEX.test(name)) return true;
+  return false;
+}
+
+const FAMOUS_CLUB_STYLES = {
+  // Hooped clubs (horizontal hoops)
+  '1569': 'Hooped', '2000149123': 'Hooped', '701': 'Hooped', '703': 'Hooped',
+  '1499': 'Hooped', '2000169123': 'Hooped', '702': 'Hooped', '559868': 'Hooped',
+  '1559': 'Hooped', '643': 'Hooped', '1563': 'Hooped',
+
+  // Sleeved clubs (contrasting sleeves like Arsenal, Aston Villa, West Ham, Ajax)
+  '602': 'Sleeved', '2000104296': 'Sleeved', '604': 'Sleeved', '2000104297': 'Sleeved',
+  '735': 'Sleeved', '2000104308': 'Sleeved', '618': 'Sleeved', '992': 'Sleeved',
+  '37087229': 'Sleeved', '862775': 'Sleeved', '860': 'Sleeved', '1032': 'Sleeved',
+  '711': 'Sleeved',
+
+  // Bicolour clubs (halves / split)
+  '1013': 'Bicolour', '2000180086': 'Bicolour', '37018527': 'Bicolour', '613': 'Bicolour',
+  '2000104298': 'Bicolour', '1132': 'Bicolour', '2000252759': 'Bicolour', '1376': 'Bicolour',
+  '600007': 'Bicolour', '1729': 'Bicolour', '1037': 'Bicolour',
+
+  // Striped clubs (vertical stripes)
+  '1139': 'Striped', '2000176318': 'Striped', '1135': 'Striped', '2000209827': 'Striped',
+  '1099': 'Striped', '2000169149': 'Striped', '688': 'Striped', '2000104304': 'Striped',
+  '1687': 'Striped', '2000167900': 'Striped', '1703': 'Striped', '2000167897': 'Striped',
+  '1708': 'Striped', '2000167899': 'Striped', '715': 'Striped', '721': 'Striped',
+  '2000104307': 'Striped', '614': 'Striped', '2000104299': 'Striped', '1725': 'Striped',
+  '734': 'Striped', '712': 'Striped', '713': 'Striped', '717': 'Striped',
+  '662': 'Striped', '1700': 'Striped', '1734': 'Striped', '2000167908': 'Striped',
+  '1706': 'Striped', '1028': 'Striped', '37087233': 'Striped', '1504': 'Striped',
+  '1222': 'Striped', '638': 'Striped', '616': 'Striped', '612': 'Striped',
+
+  // Plain clubs (solid shirt)
+  '1736': 'Plain', '2000167907': 'Plain', '676': 'Plain', '2000113596': 'Plain',
+  '630': 'Plain', '2000099871': 'Plain', '679': 'Plain', '2000104573': 'Plain',
+  '680': 'Plain', '2000104303': 'Plain', '915': 'Plain', '2000169135': 'Plain',
+  '907': 'Plain', '2000372724': 'Plain', '867': 'Plain', '2000169112': 'Plain',
+  '728': 'Plain', '2000104306': 'Plain', '650': 'Plain', '2000104300': 'Plain',
+  '672': 'Plain', '739': 'Plain', '673': 'Plain', '654': 'Plain',
+  '692': 'Plain', '1100': 'Plain', '2000209836': 'Plain', '1150': 'Plain',
+  '2000252766': 'Plain', '1140': 'Plain', '2000252768': 'Plain', '1129': 'Plain',
+  '2000209828': 'Plain', '1570': 'Plain', '1550': 'Plain', '1560': 'Plain',
+  '1561': 'Plain'
+};
+
+function mapFmStyleId(styleId, clubName = '') {
+  const sid = Number(styleId);
+  const name = String(clubName || '').toLowerCase();
+  if (sid === 4 || [13, 14, 15, 16, 19].includes(sid)) return 'Hooped';
+  if ([5, 23].includes(sid)) return 'Bicolour';
+  if ([6, 7, 8, 9].includes(sid)) return 'Sleeved';
+  if ([3, 10, 11, 12, 17, 18, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 31, 37, 44, 48, 49, 50, 51, 56].includes(sid)) {
+    if (name.includes('celtic') || name.includes('hoop') || name.includes('sporting')) return 'Hooped';
+    return 'Striped';
+  }
+  if ([0, 1, 2, 34, 35, 36].includes(sid)) return 'Plain';
+  return 'Plain';
+}
+
+function resolveClubKitStyle(c, idKey, nameKey, kitIndex = 1) {
+  const idStr = String(idKey || (c ? (c.clubId || c.id || '') : ''));
+  const name = String(nameKey || (c ? (c.club || c.name || '') : '')).toLowerCase();
+
+  // If in-game style is present and > 0, map it from memory
+  if (c) {
+    let rawStyle = null;
+    if (kitIndex === 1) rawStyle = c.k1Style != null ? c.k1Style : (c.style != null ? c.style : null);
+    else if (kitIndex === 2) rawStyle = c.k2Style;
+    else if (kitIndex === 3) rawStyle = c.k3Style;
+
+    if (rawStyle != null && Number(rawStyle) > 0) {
+      return mapFmStyleId(rawStyle, name);
+    }
+  }
+
+  // Fallbacks only apply to Home kit by default
+  if (kitIndex === 1) {
+    if (idStr && FAMOUS_CLUB_STYLES[idStr]) {
+      return FAMOUS_CLUB_STYLES[idStr];
+    }
+    // Name keywords for known traditions
+    if (name.includes('celtic') || name.includes('hoop')) return 'Hooped';
+    if (name.includes('feyenoord') || name.includes('blackburn')) return 'Bicolour';
+    if (name.includes('arsenal') || name.includes('aston villa') || name.includes('west ham')) return 'Sleeved';
+    if (name.includes('athletic') || name.includes('atletico') || name.includes('striped') || name.includes('newcastle')) return 'Striped';
+    return 'Plain';
+  }
+
+  return '0'; // Kitbasher expects '0' for Don't Care on Away/Third
+}
+
+function loadKitStyles() {
+  try {
+    const raw = localStorage.getItem(STYLE_KEY);
+    kitStyles = raw ? (JSON.parse(raw) || {}) : {};
+  } catch(e) {
+    kitStyles = {};
+  }
+}
+
+function saveKitStyles() {
+  try {
+    localStorage.setItem(STYLE_KEY, JSON.stringify(kitStyles));
+  } catch(e) {}
+}
+
+function kitStyleOf(clubOrId, kitIndex = 1) {
+  const c = (typeof clubOrId === 'object' && clubOrId) 
+    ? clubOrId 
+    : clubs.find(x => String(x.clubId) === String(clubOrId) || x.club === String(clubOrId));
+
+  const idKey = c ? String(c.clubId || c.id || '') : String(clubOrId || '');
+  const nameKey = c ? String(c.club || c.name || '') : '';
+
+  // 1. Manual user override from localStorage
+  if (idKey && kitStyles[idKey + '_' + kitIndex] && VALID_STYLES.includes(kitStyles[idKey + '_' + kitIndex])) {
+    return kitStyles[idKey + '_' + kitIndex];
+  }
+  if (kitIndex === 1) { // Backwards compat for old saves
+    if (idKey && kitStyles[idKey] && VALID_STYLES.includes(kitStyles[idKey])) {
+      return kitStyles[idKey];
+    }
+    if (nameKey && kitStyles[nameKey] && VALID_STYLES.includes(kitStyles[nameKey])) {
+      return kitStyles[nameKey];
+    }
+  }
+
+  // 2. Genuine in-game / database kit design
+  return resolveClubKitStyle(c, idKey, nameKey, kitIndex);
+}
+
+function setKitStyle(clubOrId, style, kitIndex = 1) {
+  if (!VALID_STYLES.includes(style)) style = 'Plain';
+  const c = (typeof clubOrId === 'object' && clubOrId) ? clubOrId : clubs.find(x => String(x.clubId) === String(clubOrId) || x.club === String(clubOrId));
+  const idKey = c ? String(c.clubId || c.id || '') : String(clubOrId || '');
+  if (idKey) {
+    kitStyles[idKey + '_' + kitIndex] = style;
+    if (kitIndex === 1) kitStyles[idKey] = style; // Keep backwards compatibility
+    saveKitStyles();
+  }
+}
+
+const KIT_SLOTS = [
+  { key: 'home1', group: 'home', label: 'Home 1' },
+  { key: 'home2', group: 'home', label: 'Home 2' },
+  { key: 'home3', group: 'home', label: 'Home 3' },
+  { key: 'away1', group: 'away', label: 'Away 1' },
+  { key: 'away2', group: 'away', label: 'Away 2' },
+  { key: 'away3', group: 'away', label: 'Away 3' },
+  { key: 'third1', group: 'third', label: 'Third 1' },
+  { key: 'third2', group: 'third', label: 'Third 2' },
+  { key: 'third3', group: 'third', label: 'Third 3' },
+];
+
+const COUNTRY_MAP = {
+  'English': 'England', 'Scottish': 'Scotland', 'Welsh': 'Wales', 'Northern Irish': 'Northern Ireland',
+  'Irish': 'Ireland', 'Dutch': 'Netherlands', 'Spanish': 'Spain', 'German': 'Germany',
+  'Italian': 'Italy', 'French': 'France', 'Portuguese': 'Portugal', 'Belgian': 'Belgium',
+  'Brazilian': 'Brazil', 'Argentinian': 'Argentina', 'American': 'United States',
+  'Australian': 'Australia', 'Austrian': 'Austria', 'Swiss': 'Switzerland',
+  'Swedish': 'Sweden', 'Norwegian': 'Norway', 'Danish': 'Denmark', 'Finnish': 'Finland',
+  'Greek': 'Greece', 'Turkish': 'Turkey', 'Croatian': 'Croatia', 'Serbian': 'Serbia',
+  'Czech': 'Czech Republic', 'Polish': 'Poland', 'Ukrainian': 'Ukraine', 'Russian': 'Russia',
+  'Mexican': 'Mexico', 'Colombian': 'Colombia', 'Chilean': 'Chile', 'Uruguayan': 'Uruguay',
+  'Japanese': 'Japan', 'South Korean': 'South Korea', 'Chinese': 'China', 'Saudi': 'Saudi Arabia',
+  'Moroccan': 'Morocco', 'Egyptian': 'Egypt', 'Algerian': 'Algeria', 'Tunisian': 'Tunisia',
+  'Nigerian': 'Nigeria', 'Ghanaian': 'Ghana', 'Senegalese': 'Senegal', 'Cameroonian': 'Cameroon',
+  'South African': 'South Africa', 'Canadian': 'Canada', 'Peruvian': 'Peru', 'Ecuadorian': 'Ecuador',
+  'Romanian': 'Romania', 'Hungarian': 'Hungary', 'Bulgarian': 'Bulgaria', 'New Caledonian': 'New Caledonia',
+  'Slovak': 'Slovakia', 'Slovenian': 'Slovenia', 'Bosnian': 'Bosnia and Herzegovina', 'Icelandic': 'Iceland',
+  'Israeli': 'Israel', 'Cypriot': 'Cyprus', 'Georgian': 'Georgia', 'Armenian': 'Armenia', 'Azerbaijani': 'Azerbaijan',
+  'Kazakhstani': 'Kazakhstan', 'Kazakh': 'Kazakhstan', 'Uzbek': 'Uzbekistan', 'Indian': 'India', 'Indonesian': 'Indonesia',
+  'Thai': 'Thailand', 'Vietnamese': 'Vietnam', 'Malaysian': 'Malaysia', 'Singaporean': 'Singapore',
+  'Filipino': 'Philippines', 'New Zealander': 'New Zealand', 'Venezuelan': 'Venezuela', 'Paraguayan': 'Paraguay',
+  'Bolivian': 'Bolivia', 'Costa Rican': 'Costa Rica', 'Panamanian': 'Panama', 'Honduran': 'Honduras',
+  'Guatemalan': 'Guatemala', 'Jamaican': 'Jamaica', 'Trinidadian': 'Trinidad and Tobago',
+  'Albanian': 'Albania', 'Macedonian': 'North Macedonia', 'Montenegrin': 'Montenegro', 'Luxembourger': 'Luxembourg',
+  'Malian': 'Mali', 'Ivorian': 'Ivory Coast', 'Cape Verdean': 'Cape Verde', 'Zambian': 'Zambia',
+  'Zimbabwean': 'Zimbabwe', 'Ugandan': 'Uganda', 'Kenyan': 'Kenya', 'Togolese': 'Togo', 'Beninese': 'Benin'
+};
+
+function displayCountry(raw) {
+  if (!raw) return '';
+  return COUNTRY_MAP[raw] || raw;
+}
+
+function clubIdOf(name) {
+  let h = 0x811c9dc5;
+  const s = String(name || '');
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString();
+}
+
+const PAGE_SIZE = 200;
+
+let clubs = [];
+let kitColors = {};
+let selectedClubs = new Set();
+let activeClubId = '';
+let sortKey = 'club', sortDir = 1, page = 0;
+let groupBy = 'none';
+let collapsedGroups = new Set();
+let showAllClubs = false;
+let filterCountry = '';
+let filterDivision = '';
+
+// Editing state for color picker
+let currentEditingClubId = null;
+let currentEditingSlot = null;
+let userCustomized = {};
+
+function loadUserCustomized() {
+  try { userCustomized = JSON.parse(localStorage.getItem(CUSTOM_KEY) || '{}'); }
+  catch { userCustomized = {}; }
+}
+
+function saveUserCustomized() {
+  try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(userCustomized)); } catch { }
+}
+
+function loadKitColors() {
+  loadKitStyles();
+  try { kitColors = JSON.parse(localStorage.getItem(KIT_KEY) || '{}'); }
+  catch { kitColors = {}; }
+}
+
+function saveKitColors() {
+  try { localStorage.setItem(KIT_KEY, JSON.stringify(kitColors)); } catch { }
+}
+
+function kitColorOf(clubOrId, slot) {
+  const k = String(clubOrId || '');
+  const rec = kitColors[k];
+  if (rec && rec[slot]) return rec[slot];
+  const c = clubs.find(x => String(x.clubId) === k || x.club === k);
+  if (c) {
+    const altRec = kitColors[String(c.clubId)] || kitColors[c.club];
+    if (altRec && altRec[slot]) return altRec[slot];
+    if (slot === 'home1') return c.k1BgColor || c.bgColor || '';
+    if (slot === 'home2') return c.k1FgColor || c.fgColor || '';
+    if (slot === 'home3') return c.k1OutColor || c.outlineColor || c.k1FgColor || c.fgColor || '';
+    if (slot === 'away1') return c.k2BgColor || '';
+    if (slot === 'away2') return c.k2FgColor || '';
+    if (slot === 'away3') return c.k2OutColor || c.k2FgColor || '';
+    if (slot === 'third1') return c.k3BgColor || '';
+    if (slot === 'third2') return c.k3FgColor || '';
+    if (slot === 'third3') return c.k3OutColor || c.k3FgColor || '';
+  }
+  return '';
+}
+
+function escCsv(v) {
+  const s = String(v == null ? '' : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+async function loadClubs() {
+  $('status').textContent = 'Loading…';
+  let data;
+  try {
+    data = await tauriInvoke('get_clubs');
+  } catch(e) {
+    console.error("invoke failed:", e);
+    $('empty').classList.remove('hidden');
+    $('tbl').classList.add('hidden');
+    $('tbl').style.display = 'none';
+    $('status').textContent = 'Error: ' + String(e);
+    return;
+  }
+
+  await loadSponsorConfigState();
+
+  const rawClubs = data.clubs || [];
+  clubs = rawClubs.map(c => {
+    const clubName = c.club || c.name || '';
+    const clubId = c.clubId || c.id || c.uniqueId || clubIdOf(clubName);
+    const division = c.division || '';
+    const country = c.country || c.nation || '';
+    const isWomen = isWomenClub({ club: clubName, division, ...c });
+    const idKey = String(clubId);
+
+    if (!kitColors[idKey]) {
+      kitColors[idKey] = kitColors[clubName] ? { ...kitColors[clubName] } : {};
+    }
+
+    // Seed purely from authentic in-game memory
+    const h1 = c.k1BgColor || c.bgColor || '';
+    const h2 = c.k1FgColor || c.fgColor || '';
+    const h3 = c.k1OutColor || c.outlineColor || h2 || h1 || '';
+    const a1 = c.k2BgColor || '';
+    const a2 = c.k2FgColor || '';
+    const a3 = c.k2OutColor || a2 || a1 || '';
+    const t1 = c.k3BgColor || '';
+    const t2 = c.k3FgColor || '';
+    const t3 = c.k3OutColor || t2 || t1 || '';
+
+    if (h1 && !userCustomized[idKey + ':home1']) kitColors[idKey].home1 = h1;
+    if (h2 && !userCustomized[idKey + ':home2']) kitColors[idKey].home2 = h2;
+    if (h3 && !userCustomized[idKey + ':home3']) kitColors[idKey].home3 = h3;
+
+    if (a1 && !userCustomized[idKey + ':away1']) kitColors[idKey].away1 = a1;
+    if (a2 && !userCustomized[idKey + ':away2']) kitColors[idKey].away2 = a2;
+    if (a3 && !userCustomized[idKey + ':away3']) kitColors[idKey].away3 = a3;
+
+    if (t1 && !userCustomized[idKey + ':third1']) kitColors[idKey].third1 = t1;
+    if (t2 && !userCustomized[idKey + ':third2']) kitColors[idKey].third2 = t2;
+    if (t3 && !userCustomized[idKey + ':third3']) kitColors[idKey].third3 = t3;
+
+    return {
+      ...c,
+      club: clubName,
+      clubId,
+      division,
+      country,
+      isWomen,
+      shortName: c.shortName || '',
+      initials: c.initials || '',
+      badgePath: c.badgePath || '',
+    };
+  });
+
+  saveKitColors();
+
+  if (!clubs.length) {
+    $('empty').classList.remove('hidden');
+    $('tbl').classList.add('hidden');
+    $('tbl').style.display = 'none';
+    const prompt = $('search-prompt');
+    if (prompt) prompt.classList.add('hidden');
+    $('status').textContent = '';
+    return;
+  }
+
+  selectedClubs = new Set();
+
+  if (!clubs.some(c => String(c.clubId) === String(activeClubId))) {
+    activeClubId = clubs[0]?.clubId ? String(clubs[0].clubId) : '';
+  }
+
+  $('empty').classList.add('hidden');
+  populateCountryDropdown();
+  populateDivisionDropdown();
+  updateStatus();
+  render();
+}
+
+function populateCountryDropdown() {
+  const sel = $('sel-country');
+  if (!sel) return;
+
+  let relevantClubs = clubs;
+  if (filterGender === 'men') {
+    relevantClubs = relevantClubs.filter(c => !isWomenClub(c));
+  } else if (filterGender === 'women') {
+    relevantClubs = relevantClubs.filter(c => isWomenClub(c));
+  }
+
+  const countMap = new Map();
+  for (const c of relevantClubs) {
+    const name = displayCountry(c.country);
+    if (name) {
+      countMap.set(name, (countMap.get(name) || 0) + 1);
+    }
+  }
+
+  const sortedCountries = Array.from(countMap.keys()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+  if (filterCountry && !countMap.has(filterCountry)) {
+    filterCountry = '';
+  }
+
+  const genderSuffix = filterGender === 'women' ? " (Women's Clubs)" : (filterGender === 'men' ? " (Men's Clubs)" : "");
+  let html = `<option value="">All Countries${genderSuffix}</option>`;
+  for (const name of sortedCountries) {
+    const cnt = countMap.get(name);
+    const isSelected = (name === filterCountry);
+    html += `<option value="${escHtml(name)}"${isSelected ? ' selected' : ''}>${escHtml(name)} (${cnt.toLocaleString()})</option>`;
+  }
+  sel.innerHTML = html;
+}
+
+function populateDivisionDropdown() {
+  const sel = $('sel-division');
+  if (!sel) return;
+
+  let relevantClubs = clubs;
+  if (filterGender === 'men') {
+    relevantClubs = relevantClubs.filter(c => !isWomenClub(c));
+  } else if (filterGender === 'women') {
+    relevantClubs = relevantClubs.filter(c => isWomenClub(c));
+  }
+  if (filterCountry) {
+    relevantClubs = relevantClubs.filter(c => c.country === filterCountry || displayCountry(c.country) === filterCountry);
+  }
+
+  const countMap = new Map();
+  for (const c of relevantClubs) {
+    const div = c.division && c.division.trim();
+    if (div) {
+      countMap.set(div, (countMap.get(div) || 0) + 1);
+    }
+  }
+
+  const sortedDivs = Array.from(countMap.keys()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+  // If current filterDivision is no longer in this division list, reset it
+  if (filterDivision && !countMap.has(filterDivision)) {
+    filterDivision = '';
+  }
+
+  const genderSuffix = filterGender === 'women' ? " (Women)" : (filterGender === 'men' ? " (Men)" : "");
+  const defaultLabel = filterCountry ? `All Divisions in ${filterCountry}${genderSuffix}` : `All Divisions${genderSuffix}`;
+  let html = `<option value="">${escHtml(defaultLabel)}</option>`;
+  for (const div of sortedDivs) {
+    const cnt = countMap.get(div);
+    const isSelected = (div === filterDivision);
+    html += `<option value="${escHtml(div)}"${isSelected ? ' selected' : ''}>${escHtml(div)} (${cnt.toLocaleString()})</option>`;
+  }
+  sel.innerHTML = html;
+}
+
+function updateStatus() {
+  const q = ($('search').value || '').toLowerCase().trim();
+  const isGenderActive = Boolean(filterGender && filterGender !== 'all');
+  const hasActiveFilter = Boolean(q || filterCountry || filterDivision || isGenderActive || showAllClubs);
+  const total = clubs.length;
+  const sel = selectedClubs.size;
+
+  if (!hasActiveFilter) {
+    $('status').textContent = `${total.toLocaleString()} clubs in database`;
+  } else if (q || filterCountry || filterDivision || isGenderActive) {
+    const list = applyFilter(clubs);
+    const genderTag = filterGender === 'women' ? " women's" : (filterGender === 'men' ? " men's" : "");
+    $('status').textContent = `${list.length.toLocaleString()}${genderTag} clubs found · ${sel} selected`;
+  } else {
+    $('status').textContent = `${sel} / ${total.toLocaleString()} selected`;
+  }
+  updateMasterCheck();
+}
+
+function updateMasterCheck() {
+  const master = $('master-check');
+  if (!master) return;
+  const q = ($('search').value || '').toLowerCase().trim();
+  const isGenderActive = Boolean(filterGender && filterGender !== 'all');
+  const hasActiveFilter = Boolean(q || filterCountry || filterDivision || isGenderActive || showAllClubs);
+  const list = !hasActiveFilter ? [] : applyFilter(clubs);
+  if (!list.length) {
+    master.classList.remove('checked', 'indeterminate');
+    return;
+  }
+  const selCount = list.filter(c => selectedClubs.has(String(c.clubId))).length;
+  if (selCount === list.length && list.length > 0) {
+    master.classList.remove('indeterminate');
+    master.classList.add('checked');
+  } else if (selCount > 0) {
+    master.classList.remove('checked');
+    master.classList.add('indeterminate');
+  } else {
+    master.classList.remove('checked', 'indeterminate');
+  }
+}
+
+function applyFilter(list) {
+  let res = list;
+  if (filterGender === 'men') {
+    res = res.filter(c => !isWomenClub(c));
+  } else if (filterGender === 'women') {
+    res = res.filter(c => isWomenClub(c));
+  }
+  if (filterCountry) {
+    res = res.filter(c => c.country === filterCountry || displayCountry(c.country) === filterCountry);
+  }
+  if (filterDivision) {
+    res = res.filter(c => c.division === filterDivision);
+  }
+  const q = ($('search').value || '').toLowerCase().trim();
+  if (q) {
+    const rawTokens = q.split(/\s+/).filter(Boolean);
+    res = res.filter(c => {
+      const isW = isWomenClub(c);
+      const hay = [
+        c.club || '',
+        String(c.clubId || ''),
+        c.division || '',
+        c.country || '',
+        displayCountry(c.country)
+      ].join(' ').toLowerCase();
+
+      return rawTokens.every(tok => {
+        if (tok === 'women' || tok === 'female' || tok === 'ladies') return isW;
+        if (tok === 'men' || tok === 'male') return !isW;
+        return hay.includes(tok);
+      });
+    });
+  }
+  return res;
+}
+
+function sortClubs(list) {
+  const dir = sortDir;
+  return [...list].sort((a, b) => {
+    if (sortKey === 'clubId') {
+      const an = Number(a.clubId), bn = Number(b.clubId);
+      if (!isNaN(an) && !isNaN(bn)) return (an - bn) * dir;
+      return String(a.clubId || '').localeCompare(String(b.clubId || ''), undefined, { numeric: true }) * dir;
+    }
+    if (sortKey === 'sponsor') {
+      const av = getClubSponsor(a), bv = getClubSponsor(b);
+      return av.localeCompare(bv) * dir;
+    }
+    if (sortKey === 'template') {
+      const av = getClubTemplate(a), bv = getClubTemplate(b);
+      return av.localeCompare(bv) * dir;
+    }
+    if (sortKey === 'shortName') {
+      const av = getClubShortName(a), bv = getClubShortName(b);
+      return av.localeCompare(bv) * dir;
+    }
+    if (sortKey === 'badge') {
+      const av = resolveBadgePath(a.club, a.clubId, a.badgePath);
+      const bv = resolveBadgePath(b.club, b.clubId, b.badgePath);
+      return av.localeCompare(bv) * dir;
+    }
+    if (sortKey === 'home' || sortKey === 'away' || sortKey === 'third') {
+      const slot = `${sortKey}1`;
+      const av = kitColorOf(a.clubId, slot) || '';
+      const bv = kitColorOf(b.clubId, slot) || '';
+      if (!av && bv) return 1 * dir;
+      if (av && !bv) return -1 * dir;
+      return av.localeCompare(bv) * dir;
+    }
+    if (sortKey === 'style') {
+      const av = kitStyleOf(a);
+      const bv = kitStyleOf(b);
+      return av.localeCompare(bv) * dir;
+    }
+    const av = a[sortKey], bv = b[sortKey];
+    return String(av || '').localeCompare(String(bv || ''), undefined, { numeric: true }) * dir;
+  });
+}
+
+function updateSortIndicators() {
+  const headers = [
+    { el: $('th-team-name'), key: 'club' },
+    { el: $('th-unique-id'), key: 'clubId' },
+    { el: $('th-sponsor'), key: 'sponsor' },
+    { el: $('th-template'), key: 'template' },
+    { el: $('th-shortname'), key: 'shortName' },
+    { el: $('th-badge'), key: 'badge' },
+    { el: $('th-home-colours'), key: 'home' },
+    { el: $('th-away-colours'), key: 'away' },
+    { el: $('th-third-colours'), key: 'third' },
+    { el: $('th-home-style'), key: 'style' },
+    { el: $('th-away-style'), key: 'style-away' },
+    { el: $('th-third-style'), key: 'style-third' },
+  ];
+  for (const h of headers) {
+    if (!h.el) continue;
+    h.el.classList.remove('sort-active', 'sort-asc', 'sort-desc');
+    if (h.key === sortKey) {
+      h.el.classList.add('sort-active', sortDir === 1 ? 'sort-asc' : 'sort-desc');
+    }
+  }
+}
+
+function swatchesHtml(c, group) {
+  const idStr = String(c.clubId || c.club || '');
+  const s1 = kitColorOf(idStr, `${group}1`);
+  const s2 = kitColorOf(idStr, `${group}2`) || s1;
+  const s3 = kitColorOf(idStr, `${group}3`) || s2 || s1;
+
+  function swatchTag(slot, color) {
+    const slotType = slot.endsWith('1') ? 'Background' : (slot.endsWith('2') ? 'Foreground' : 'Outline');
+    const groupUpper = group.charAt(0).toUpperCase() + group.slice(1);
+    const isFilled = Boolean(color);
+    const bgStyle = isFilled ? `style="background:${color};"` : '';
+    const title = isFilled 
+      ? `${groupUpper} ${slotType}: ${color} (click to change, right-click to clear)` 
+      : `${groupUpper} ${slotType}: Empty (click to set)`;
+    return `<div class="swatch ${isFilled ? 'filled' : 'empty'}" data-club-id="${escHtml(idStr)}" data-slot="${slot}" ${bgStyle} title="${title}"></div>`;
+  }
+
+  return `<div class="swatches-container swatch-group">
+    ${swatchTag(`${group}1`, s1)}
+    ${swatchTag(`${group}2`, s2)}
+    ${swatchTag(`${group}3`, s3)}
+  </div>`;
+}
+
+function clubRowHtml(c) {
+  const idStr = String(c.clubId);
+  const isChecked = selectedClubs.has(idStr);
+  const isSelectedRow = (idStr === String(activeClubId));
+  const badgeTitle = c.badgePath ? `Badge: ${c.badgePath}` : '';
+  const idTitle = badgeTitle ? `ID: ${c.clubId} | ${badgeTitle} (click to copy ID)` : 'Click to copy ID';
+  const nameTitle = `${c.club}${c.division ? ' (' + c.division + ')' : ''}${badgeTitle ? '\n' + badgeTitle : ''}`;
+  const styleOptions = (kitIndex) => {
+    const curStyle = kitStyleOf(c, kitIndex);
+    return VALID_STYLES.map(st =>
+      `<option value="${st}"${st === curStyle ? ' selected' : ''}>${st}</option>`
+    ).join('');
+  };
+
+  const isWomen = isWomenClub(c);
+  const genderBadge = isWomen 
+    ? `<span class="badge-gender badge-women" title="Women's football team">Women</span>`
+    : `<span class="badge-gender badge-men" title="Men's football team">Men</span>`;
+  const divSub = c.division ? `<div class="td-division-sub" title="${escHtml(c.division)}">${escHtml(c.division)}</div>` : '';
+
+  const sponsorVal = getClubSponsor(c);
+  const templateVal = getClubTemplate(c);
+  const shortNameVal = getClubShortName(c);
+  const badgePathVal = resolveBadgePath(c.club, c.clubId, c.badgePath);
+  const badgeFilename = badgePathVal.split(/[/\\]/).pop() || 'badge.png';
+  const isFallbackBadge = badgeFilename === 'default_badge.png';
+
+  return `<tr data-club-id="${escHtml(idStr)}" class="${isSelectedRow ? 'row-selected' : ''}">
+    <td class="td-check">
+      <div class="check-box ${isChecked ? 'checked' : ''}" data-club-id="${escHtml(idStr)}" title="Toggle selection">
+        <svg viewBox="0 0 16 16"><polyline points="2.5 8.5 6 12 13.5 4.5"></polyline></svg>
+      </div>
+    </td>
+    <td class="td-name" title="${escHtml(nameTitle)}">
+      <div style="display:flex;align-items:center;">
+        <span>${escHtml(c.club)}</span>
+        ${genderBadge}
+      </div>
+      ${divSub}
+    </td>
+    <td class="td-id" title="${escHtml(idTitle)}">${escHtml(c.clubId)}</td>
+    <td class="td-sponsor">
+      <input type="text" class="table-input td-sponsor-input" data-club-id="${escHtml(idStr)}" value="${escHtml(sponsorVal)}" spellcheck="false" title="Sponsor Grouping (Default: ALL)">
+    </td>
+    <td class="td-template">
+      <input type="text" class="table-input td-template-input" data-club-id="${escHtml(idStr)}" value="${escHtml(templateVal)}" spellcheck="false" title="Template Grouping (Default: ALL)">
+    </td>
+    <td class="td-shortname">
+      <input type="text" class="table-input td-shortname-input" data-club-id="${escHtml(idStr)}" value="${escHtml(shortNameVal)}" spellcheck="false" title="Team Short Name">
+    </td>
+    <td class="td-badge">
+      <span class="badge-location-tag ${isFallbackBadge ? 'badge-location-fallback' : ''}" data-club-id="${escHtml(idStr)}" title="${escHtml(badgePathVal)}">
+        🛡️ ${escHtml(badgeFilename)}
+      </span>
+    </td>
+    <td>${swatchesHtml(c, 'home')}</td>
+    <td>${swatchesHtml(c, 'away')}</td>
+    <td>${swatchesHtml(c, 'third')}</td>
+    <td class="td-style"><select class="kit-style-select" data-club-id="${escHtml(idStr)}" data-kit-index="1" title="Select Home kit style">${styleOptions(1)}</select></td>
+    <td class="td-style"><select class="kit-style-select" data-club-id="${escHtml(idStr)}" data-kit-index="2" title="Select Away kit style">${styleOptions(2)}</select></td>
+    <td class="td-style"><select class="kit-style-select" data-club-id="${escHtml(idStr)}" data-kit-index="3" title="Select Third kit style">${styleOptions(3)}</select></td>
+  </tr>`;
+}
+
+function render() {
+  updateSortIndicators();
+  const q = ($('search').value || '').toLowerCase().trim();
+  const promptEl = $('search-prompt');
+  const tbl = $('tbl');
+  const pager = $('pager');
+  const btnToggleAll = $('btn-toggle-all-groups');
+  const isGenderActive = Boolean(filterGender && filterGender !== 'all');
+  const hasActiveFilter = Boolean(q || filterCountry || filterDivision || isGenderActive || showAllClubs);
+
+  if (!hasActiveFilter) {
+    if (promptEl) {
+      promptEl.classList.remove('hidden');
+      const countLabel = $('db-count-label');
+      if (countLabel) countLabel.textContent = `${clubs.length.toLocaleString()} clubs available in database.`;
+    }
+    tbl.classList.add('hidden');
+    tbl.style.display = 'none';
+    pager.classList.add('hidden');
+    if (btnToggleAll) btnToggleAll.classList.add('hidden');
+    updateStatus();
+    return;
+  }
+
+  if (promptEl) promptEl.classList.add('hidden');
+  tbl.classList.remove('hidden');
+  tbl.style.display = '';
+
+  let list = applyFilter(clubs);
+  const tbody = $('tbody');
+
+  if (groupBy === 'none') {
+    if (btnToggleAll) btnToggleAll.classList.add('hidden');
+    list = sortClubs(list);
+
+    const pageCount = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
+    page = Math.min(page, pageCount - 1);
+    const pageStart = page * PAGE_SIZE;
+    const pageList = list.slice(pageStart, pageStart + PAGE_SIZE);
+
+    tbody.innerHTML = pageList.map(clubRowHtml).join('');
+
+    if (list.length > PAGE_SIZE) {
+      pager.classList.remove('hidden');
+      $('page-info').textContent = `${pageStart + 1}–${Math.min(pageStart + PAGE_SIZE, list.length)} / ${list.length}`;
+      $('btn-prev').disabled = page === 0;
+      $('btn-next').disabled = page >= pageCount - 1;
+    } else {
+      pager.classList.add('hidden');
+    }
+  } else {
+    // Grouped mode (division or country)
+    pager.classList.add('hidden');
+    if (btnToggleAll) btnToggleAll.classList.remove('hidden');
+
+    const groupMap = new Map();
+    for (const c of list) {
+      let gKey;
+      if (groupBy === 'country') {
+        const norm = displayCountry(c.country);
+        gKey = norm && norm.trim() ? norm.trim() : '(No Country)';
+      } else {
+        const raw = c.division;
+        gKey = raw && raw.trim() ? raw.trim() : '(No Division)';
+      }
+      let arr = groupMap.get(gKey);
+      if (!arr) {
+        arr = [];
+        groupMap.set(gKey, arr);
+      }
+      arr.push(c);
+    }
+
+    const sortedGroups = Array.from(groupMap.keys()).sort((a, b) => {
+      const aUnk = a.startsWith('(');
+      const bUnk = b.startsWith('(');
+      if (aUnk && !bUnk) return 1;
+      if (!aUnk && bUnk) return -1;
+      return a.localeCompare(b, undefined, { numeric: true });
+    });
+
+    const allCollapsed = sortedGroups.length > 0 && sortedGroups.every(g => collapsedGroups.has(g));
+    if (btnToggleAll) {
+      btnToggleAll.textContent = allCollapsed ? 'Expand All' : 'Collapse All';
+    }
+
+    let html = '';
+    for (const gKey of sortedGroups) {
+      const gClubs = sortClubs(groupMap.get(gKey));
+      const totalInGroup = gClubs.length;
+      const selInGroup = gClubs.filter(c => selectedClubs.has(String(c.clubId))).length;
+      const isAllChecked = totalInGroup > 0 && selInGroup === totalInGroup;
+      const isIndeterminate = selInGroup > 0 && selInGroup < totalInGroup;
+      const isCollapsed = collapsedGroups.has(gKey);
+
+      html += `<tr class="tr-group-header" data-group-name="${escHtml(gKey)}">
+        <td colspan="7">
+          <div class="group-header-content">
+            <span class="group-chevron ${isCollapsed ? 'collapsed' : ''}">▼</span>
+            <div class="check-box group-check-box ${isAllChecked ? 'checked' : (isIndeterminate ? 'indeterminate' : '')}" data-group-name="${escHtml(gKey)}" title="Toggle selection for ${escHtml(gKey)}">
+              <svg viewBox="0 0 16 16"><polyline points="2.5 8.5 6 12 13.5 4.5"></polyline></svg>
+            </div>
+            <span class="group-title">${escHtml(gKey)}</span>
+            <span class="group-badge">${totalInGroup} ${totalInGroup === 1 ? 'club' : 'clubs'}</span>
+          </div>
+        </td>
+      </tr>`;
+
+      if (!isCollapsed) {
+        html += gClubs.map(clubRowHtml).join('');
+      }
+    }
+
+    tbody.innerHTML = html;
+  }
+}
+
+function initTableEvents() {
+  const tbody = $('tbody');
+
+  tbody.addEventListener('click', e => {
+    // 1. Group header interactions
+    const groupHeader = e.target.closest('.tr-group-header');
+    if (groupHeader) {
+      const gKey = groupHeader.dataset.groupName;
+      const groupCheck = e.target.closest('.group-check-box');
+      if (groupCheck) {
+        e.stopPropagation();
+        toggleGroupSelection(gKey);
+        return;
+      }
+      toggleGroupCollapse(gKey);
+      return;
+    }
+
+    // 2. Club checkbox interaction
+    const box = e.target.closest('.check-box:not(.group-check-box)');
+    if (box) {
+      e.stopPropagation();
+      const clubId = box.dataset.clubId;
+      if (selectedClubs.has(clubId)) {
+        selectedClubs.delete(clubId);
+      } else {
+        selectedClubs.add(clubId);
+      }
+      updateStatus();
+      render();
+      return;
+    }
+
+    // 3. Swatch interaction
+    const sw = e.target.closest('.swatch');
+    if (sw) {
+      e.stopPropagation();
+      const clubId = sw.dataset.clubId;
+      const slot = sw.dataset.slot;
+      openColorPicker(clubId, slot, sw);
+      return;
+    }
+
+    // 4. Click ID to copy
+    const tdId = e.target.closest('.td-id');
+    if (tdId && navigator.clipboard) {
+      const idText = tdId.textContent.trim();
+      if (idText) {
+        navigator.clipboard.writeText(idText).then(() => {
+          const statusEl = $('status');
+          if (statusEl) {
+            statusEl.textContent = `Copied ID ${idText} to clipboard!`;
+            setTimeout(() => { updateStatus(); }, 1800);
+          }
+        }).catch(() => {});
+      }
+    }
+
+    // 5. Click badge tag to open badge location modal
+    const badgeTag = e.target.closest('.badge-location-tag');
+    if (badgeTag) {
+      e.stopPropagation();
+      const badgeModal = $('badge-modal');
+      if (badgeModal) {
+        badgeModal.classList.remove('hidden');
+        const input = $('input-quick-badge-dir');
+        if (input) {
+          input.value = getLogoDir();
+          input.focus();
+        }
+      }
+      return;
+    }
+
+    // 6. Row selection
+    const tr = e.target.closest('tr[data-club-id]');
+    if (tr) {
+      const clubId = tr.dataset.clubId;
+      activeClubId = clubId;
+      tbody.querySelectorAll('tr.row-selected').forEach(r => r.classList.remove('row-selected'));
+      tr.classList.add('row-selected');
+    }
+  });
+
+  tbody.addEventListener('input', e => {
+    const target = e.target;
+    if (target.classList.contains('td-sponsor-input')) {
+      const cid = target.dataset.clubId;
+      if (cid) {
+        clubSponsors[cid] = target.value.trim() || 'ALL';
+        saveTableCustoms();
+      }
+    } else if (target.classList.contains('td-template-input')) {
+      const cid = target.dataset.clubId;
+      if (cid) {
+        clubTemplates[cid] = target.value.trim() || 'ALL';
+        saveTableCustoms();
+      }
+    } else if (target.classList.contains('td-shortname-input')) {
+      const cid = target.dataset.clubId;
+      if (cid) {
+        clubShortNames[cid] = target.value.trim();
+        saveTableCustoms();
+      }
+    }
+  });
+
+  tbody.addEventListener('change', e => {
+    const target = e.target;
+    if (!target.classList.contains('td-sponsor-input')) return;
+    syncSponsorConfig(clubs).catch(err => {
+      console.warn('Could not update sponsor config after assignment:', err);
+    });
+  });
+
+  tbody.addEventListener('contextmenu', e => {
+    const sw = e.target.closest('.swatch');
+    if (sw) {
+      e.preventDefault();
+      e.stopPropagation();
+      const clubId = sw.dataset.clubId;
+      const slot = sw.dataset.slot;
+      clearColorSlot(clubId, slot, sw);
+    }
+  });
+
+  tbody.addEventListener('change', e => {
+    const sel = e.target.closest('.kit-style-select');
+    if (sel) {
+      const clubId = sel.dataset.clubId;
+      const kitIndex = parseInt(sel.dataset.kitIndex || '1', 10);
+      setKitStyle(clubId, sel.value, kitIndex);
+    }
+  });
+}
+
+function toggleGroupCollapse(gKey) {
+  if (collapsedGroups.has(gKey)) {
+    collapsedGroups.delete(gKey);
+  } else {
+    collapsedGroups.add(gKey);
+  }
+  render();
+}
+
+function toggleGroupSelection(gKey) {
+  const list = applyFilter(clubs);
+  const targetClubs = list.filter(c => {
+    let key;
+    if (groupBy === 'country') {
+      const norm = displayCountry(c.country);
+      key = norm && norm.trim() ? norm.trim() : '(No Country)';
+    } else {
+      const raw = c.division;
+      key = raw && raw.trim() ? raw.trim() : '(No Division)';
+    }
+    return key === gKey;
+  });
+  const allSelected = targetClubs.length > 0 && targetClubs.every(c => selectedClubs.has(String(c.clubId)));
+  if (allSelected) {
+    for (const c of targetClubs) selectedClubs.delete(String(c.clubId));
+  } else {
+    for (const c of targetClubs) selectedClubs.add(String(c.clubId));
+  }
+  updateStatus();
+  render();
+}
+
+function openColorPicker(clubId, slot, swatchEl) {
+  currentEditingClubId = clubId;
+  currentEditingSlot = slot;
+  const picker = $('hidden-picker');
+  const currentColor = kitColorOf(clubId, slot) || '#0078d7';
+  picker.value = currentColor.startsWith('#') && currentColor.length === 7 ? currentColor : '#0078d7';
+  picker.click();
+}
+
+$('hidden-picker').addEventListener('input', e => {
+  if (!currentEditingClubId || !currentEditingSlot) return;
+  const newColor = e.target.value;
+  if (!kitColors[currentEditingClubId]) kitColors[currentEditingClubId] = {};
+  kitColors[currentEditingClubId][currentEditingSlot] = newColor;
+  saveKitColors();
+  userCustomized[currentEditingClubId + ':' + currentEditingSlot] = true;
+  saveUserCustomized();
+
+  // Directly update corresponding swatch DOM
+  const swatch = document.querySelector(`.swatch[data-club-id="${CSS.escape(currentEditingClubId)}"][data-slot="${currentEditingSlot}"]`);
+  if (swatch) {
+    const slotType = currentEditingSlot.endsWith('1') ? 'Background' : (currentEditingSlot.endsWith('2') ? 'Foreground' : 'Outline');
+    const groupName = currentEditingSlot.slice(0, -1);
+    const groupUpper = groupName.charAt(0).toUpperCase() + groupName.slice(1);
+    swatch.className = 'swatch filled';
+    swatch.style.background = newColor;
+    swatch.title = `${groupUpper} ${slotType}: ${newColor} (click to change, right-click to clear)`;
+  }
+});
+
+function clearColorSlot(clubId, slot, swatchEl) {
+  if (kitColors[clubId]) {
+    kitColors[clubId][slot] = '';
+    saveKitColors();
+  }
+  userCustomized[clubId + ':' + slot] = true;
+  saveUserCustomized();
+  const slotType = slot.endsWith('1') ? 'Background' : (slot.endsWith('2') ? 'Foreground' : 'Outline');
+  const groupName = slot.slice(0, -1);
+  const groupUpper = groupName.charAt(0).toUpperCase() + groupName.slice(1);
+  swatchEl.className = 'swatch empty';
+  swatchEl.style.background = '';
+  swatchEl.title = `${groupUpper} ${slotType}: Empty (click to set)`;
+}
+
+// Master checkbox toggle
+$('master-check').addEventListener('click', () => {
+  const list = applyFilter(clubs);
+  if (!list.length) return;
+  const allSel = list.every(c => selectedClubs.has(String(c.clubId)));
+  if (allSel) {
+    for (const c of list) selectedClubs.delete(String(c.clubId));
+  } else {
+    for (const c of list) selectedClubs.add(String(c.clubId));
+  }
+  updateStatus();
+  render();
+});
+
+// Toolbar buttons
+$('btn-select-all').addEventListener('click', () => {
+  const list = applyFilter(clubs);
+  for (const c of list) selectedClubs.add(String(c.clubId));
+  updateStatus();
+  render();
+});
+
+$('btn-deselect-all').addEventListener('click', () => {
+  selectedClubs.clear();
+  updateStatus();
+  render();
+});
+
+const selGender = $('sel-gender');
+if (selGender) {
+  selGender.addEventListener('change', () => {
+    filterGender = selGender.value;
+    page = 0;
+    populateCountryDropdown();
+    populateDivisionDropdown();
+    render();
+    updateStatus();
+  });
+}
+
+const btnShowAll = $('btn-show-all');
+if (btnShowAll) {
+  btnShowAll.addEventListener('click', () => {
+    showAllClubs = true;
+    page = 0;
+    render();
+    updateStatus();
+  });
+}
+
+$('sel-group').addEventListener('change', e => {
+  groupBy = e.target.value;
+  collapsedGroups.clear();
+  page = 0;
+  render();
+});
+
+const selCountry = $('sel-country');
+if (selCountry) {
+  selCountry.addEventListener('change', e => {
+    filterCountry = e.target.value;
+    populateDivisionDropdown();
+    page = 0;
+    render();
+    updateStatus();
+  });
+}
+
+const selDivision = $('sel-division');
+if (selDivision) {
+  selDivision.addEventListener('change', e => {
+    filterDivision = e.target.value;
+    page = 0;
+    render();
+    updateStatus();
+  });
+}
+
+$('btn-toggle-all-groups').addEventListener('click', () => {
+  if (groupBy === 'none') return;
+  const list = applyFilter(clubs);
+  const groupNames = new Set();
+  for (const c of list) {
+    let gKey;
+    if (groupBy === 'country') {
+      const norm = displayCountry(c.country);
+      gKey = norm && norm.trim() ? norm.trim() : '(No Country)';
+    } else {
+      const raw = c.division;
+      gKey = raw && raw.trim() ? raw.trim() : '(No Division)';
+    }
+    groupNames.add(gKey);
+  }
+  const allCollapsed = groupNames.size > 0 && Array.from(groupNames).every(g => collapsedGroups.has(g));
+  if (allCollapsed) {
+    collapsedGroups.clear();
+  } else {
+    for (const g of groupNames) collapsedGroups.add(g);
+  }
+  render();
+});
+
+function bindHeaderSort(id, key) {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('click', () => {
+    if (sortKey === key) {
+      sortDir *= -1;
+    } else {
+      sortKey = key;
+      sortDir = 1;
+    }
+    page = 0;
+    render();
+  });
+}
+
+bindHeaderSort('th-team-name', 'club');
+bindHeaderSort('th-unique-id', 'clubId');
+bindHeaderSort('th-sponsor', 'sponsor');
+bindHeaderSort('th-template', 'template');
+bindHeaderSort('th-shortname', 'shortName');
+bindHeaderSort('th-badge', 'badge');
+bindHeaderSort('th-home-colours', 'home');
+bindHeaderSort('th-away-colours', 'away');
+bindHeaderSort('th-third-colours', 'third');
+bindHeaderSort('th-home-style', 'style');
+bindHeaderSort('th-away-style', 'style-away');
+bindHeaderSort('th-third-style', 'style-third');
+
+const btnApplyStyle = $('btn-apply-style');
+if (btnApplyStyle) {
+  btnApplyStyle.addEventListener('click', () => {
+    const bulkEl = $('sel-bulk-style');
+    const selStyle = bulkEl ? bulkEl.value : 'Striped';
+    if (!VALID_STYLES.includes(selStyle)) return;
+    if (selectedClubs.size === 0) {
+      alert('Please select one or more clubs to apply this kit style to.');
+      return;
+    }
+    for (const clubId of selectedClubs) {
+      kitStyles[clubId] = selStyle;
+    }
+    saveKitStyles();
+    render();
+    const statusEl = $('status');
+    if (statusEl) {
+      statusEl.textContent = `Applied "${selStyle}" style to ${selectedClubs.size} selected clubs`;
+      setTimeout(() => { updateStatus(); }, 2500);
+    }
+  });
+}
+
+$('search').addEventListener('input', () => {
+  const q = ($('search').value || '').trim();
+  if (q) showAllClubs = false;
+  page = 0;
+  render();
+  updateStatus();
+});
+$('btn-prev').addEventListener('click', () => { if (page > 0) { page--; render(); } });
+$('btn-next').addEventListener('click', () => { page++; render(); });
+
+function formatHexColor(val) {
+  if (!val) return '';
+  let s = String(val).trim();
+  if (/^#?[0-9a-fA-F]{6}$/.test(s)) {
+    return s.startsWith('#') ? s.toUpperCase() : '#' + s.toUpperCase();
+  }
+  return s;
+}
+
+function hasRealBadgePath(value) {
+  const badgePath = String(value || '').trim();
+  return Boolean(badgePath) && !/(?:^|[\\/])default_badge\.png$/i.test(badgePath);
+}
+
+function hasKitData(c) {
+  return ['home', 'away', 'third'].some(group => [1, 2, 3].some(index => {
+    const value = kitColorOf(c.clubId, `${group}${index}`);
+    return Boolean(String(value || '').trim());
+  }));
+}
+
+function exportTeamLabel(c) {
+  const name = String(c.club || '').trim() || 'Unnamed team';
+  const id = String(c.clubId || '').trim();
+  return id ? `${name} (${id})` : name;
+}
+
+function formatInvalidExportTeams(items) {
+  const labels = items.slice(0, 8).map(exportTeamLabel);
+  if (items.length > labels.length) labels.push(`+${items.length - labels.length} more`);
+  return labels.join(', ');
+}
+
+function showExportValidationError(message) {
+  const statusEl = $('status');
+  if (statusEl) {
+    statusEl.textContent = message;
+    statusEl.style.color = '#ff8f8f';
+  }
+  alert(message);
+}
+
+async function resolveAndValidateExportTeams(targetList) {
+  let badgeMap;
+  try {
+    badgeMap = await tauriInvoke('resolve_badges', {
+      badgeDir: getLogoDir(),
+      clubs: targetList.map(c => ({
+        id: String(c.clubId || ''),
+        name: c.club || '',
+        existing_path: c.badgePath || null
+      }))
+    }) || {};
+  } catch (err) {
+    console.warn('resolve_badges failed; export cancelled:', err);
+    showExportValidationError('Export cancelled: badges could not be verified. Check the badge folder and try again.');
+    return null;
+  }
+
+  const missingBadges = targetList.filter(c => !hasRealBadgePath(badgeMap[String(c.clubId || '')]));
+  const missingKits = targetList.filter(c => !hasKitData(c));
+  const problems = [];
+  if (missingBadges.length) {
+    problems.push(`missing badges (${missingBadges.length}): ${formatInvalidExportTeams(missingBadges)}`);
+  }
+  if (missingKits.length) {
+    problems.push(`no kit colours (${missingKits.length}): ${formatInvalidExportTeams(missingKits)}`);
+  }
+  if (problems.length) {
+    showExportValidationError(`Export cancelled. ${problems.join('. ')}.`);
+    return null;
+  }
+
+  return badgeMap;
+}
+
+async function exportCsv(forceSaveAs = false) {
+  const q = ($('search').value || '').trim();
+  const hasActiveFilter = Boolean(q || filterCountry || filterDivision || (filterGender && filterGender !== 'all') || showAllClubs);
+  const filtered = hasActiveFilter ? applyFilter(clubs) : clubs;
+  const list = sortClubs(filtered);
+  const targetList = selectedClubs.size > 0 ? list.filter(c => selectedClubs.has(String(c.clubId))) : list;
+
+  if (!targetList.length) {
+    alert('No clubs to export. Select or filter clubs first.');
+    return;
+  }
+
+  try {
+    await syncSponsorConfig(targetList);
+  } catch (err) {
+    console.warn('Could not update sponsor config before CSV export:', err);
+  }
+
+  const defaultDir = getCsvDir();
+  const defaultFilename = getCsvFilename();
+  const shouldPrompt = forceSaveAs || getPromptSave();
+
+  let targetFullPath = null;
+  let targetFilename = defaultFilename;
+  let targetDir = defaultDir;
+
+  if (shouldPrompt) {
+    try {
+      const chosen = await tauriInvoke('select_save_file', {
+        title: 'Save Teams CSV',
+        defaultDir: defaultDir,
+        defaultFilename: defaultFilename,
+        filterName: 'CSV Files',
+        filterExt: 'csv'
+      });
+      if (!chosen) return; // User cancelled
+      targetFullPath = chosen;
+      const parts = chosen.split(/[/\\]/);
+      targetFilename = parts[parts.length - 1] || defaultFilename;
+      targetDir = parts.slice(0, -1).join('\\') || defaultDir;
+    } catch (e) {
+      console.warn('select_save_file failed or not in Tauri, falling back:', e);
+    }
+  }
+
+  const shouldSuffixWomen = $('chk-suffix-women') ? $('chk-suffix-women').checked : true;
+  const badgeDir = getLogoDir();
+
+  // Resolve badges on disk using backend if available so Kitbasher never fails File.Exists
+  let badgeMap = {};
+  try {
+    const queryList = targetList.map(c => ({
+      id: String(c.clubId || ''),
+      name: c.club || '',
+      existing_path: c.badgePath || null
+    }));
+    badgeMap = await tauriInvoke('resolve_badges', {
+      badgeDir: badgeDir,
+      clubs: queryList
+    }) || {};
+  } catch (err) {
+    console.warn('resolve_badges invoke failed, using client fallback:', err);
+  }
+
+  // 23-column format matching the image specification
+  const rows = [];
+
+  for (const c of targetList) {
+    const isW = isWomenClub(c);
+    let clubName = c.club || '';
+    if (isW && shouldSuffixWomen) {
+      if (!/women|ladies|feminin|frauen|\(w\)/i.test(clubName)) {
+        clubName = `${clubName} Women`;
+      }
+    }
+    const clubId = String(c.clubId || '');
+    const sponsorGrouping = sponsorGroupingId(getClubSponsor(c));
+    const templateGrouping = getClubTemplate(c);
+    const shortName = getClubShortName(c);
+    const badgePath = badgeMap[clubId] || resolveBadgePath(c.club, clubId, c.badgePath);
+
+    const home1 = formatHexColor(kitColorOf(c.clubId, 'home1') || c.k1BgColor || c.bgColor || '');
+    const home2 = formatHexColor(kitColorOf(c.clubId, 'home2') || c.k1FgColor || c.fgColor || home1);
+    const home3 = formatHexColor(kitColorOf(c.clubId, 'home3') || c.k1OutColor || c.outlineColor || home2 || home1);
+
+    const away1 = formatHexColor(kitColorOf(c.clubId, 'away1') || c.k2BgColor || home2 || '');
+    const away2 = formatHexColor(kitColorOf(c.clubId, 'away2') || c.k2FgColor || home1 || away1);
+    const away3 = formatHexColor(kitColorOf(c.clubId, 'away3') || c.k2OutColor || away2 || away1);
+
+    const third1 = formatHexColor(kitColorOf(c.clubId, 'third1') || c.k3BgColor || '');
+    const third2 = formatHexColor(kitColorOf(c.clubId, 'third2') || c.k3FgColor || third1);
+    const third3 = formatHexColor(kitColorOf(c.clubId, 'third3') || c.k3OutColor || third2 || third1);
+
+    const kitDesign1 = kitStyleOf(c, 1);
+    const kitDesign2 = kitStyleOf(c, 2);
+    const kitDesign3 = kitStyleOf(c, 3);
+
+    rows.push([
+      clubName,
+      clubId,
+      '',
+      sponsorGrouping,
+      templateGrouping,
+      shortName,
+      badgePath,
+      home1,
+      home2,
+      home3,
+      away1,
+      away2,
+      away3,
+      third1,
+      third2,
+      third3,
+      kitDesign1,
+      kitDesign2,
+      kitDesign3,
+      shortName
+    ]);
+  }
+
+  const csv = rows.map(r => r.map(escCsv).join(',')).join('\r\n');
+
+  try {
+    const savedPath = await tauriInvoke('save_teams_csv', {
+      csvContent: '\uFEFF' + csv,
+      filename: targetFilename,
+      directory: targetDir,
+      fullPath: targetFullPath
+    });
+    const msg = `Saved ${targetList.length} clubs to ${savedPath}`;
+    const statusEl = $('status');
+    if (statusEl) {
+      statusEl.textContent = msg;
+      statusEl.style.color = '#5aa9ff';
+      setTimeout(() => { updateStatus(); }, 6000);
+    }
+    alert(msg);
+    return;
+  } catch (err) {
+    console.warn('tauriInvoke save_teams_csv failed, falling back to browser download:', err);
+  }
+
+  // Fallback for browser
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = targetFilename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+
+const NAMED_COLORS = {
+  '#ffffff': 'White', '#000000': 'Black', '#ff0000': 'Red', '#0000ff': 'Blue',
+  '#008000': 'Green', '#ffff00': 'Yellow', '#ffd700': 'Gold', '#ffa500': 'Orange',
+  '#ff8c00': 'DarkOrange', '#808080': 'Gray', '#c0c0c0': 'Silver', '#2e8b57': 'SeaGreen',
+  '#00ffff': 'Cyan', '#000080': 'Navy', '#87ceeb': 'SkyBlue', '#4169e1': 'RoyalBlue',
+  '#800000': 'Maroon', '#800080': 'Purple', '#ee82ee': 'Violet', '#f5f5dc': 'Beige',
+  '#a52a2a': 'Brown', '#00ff00': 'Lime', '#4682b4': 'SteelBlue', '#1e90ff': 'DodgerBlue',
+  '#00ced1': 'DarkTurquoise', '#98fb98': 'PaleGreen', '#20b2aa': 'LightSeaGreen',
+  '#ff1493': 'DeepPink', '#ff69b4': 'HotPink', '#da70d6': 'Orchid', '#dda0dd': 'Plum',
+  '#b22222': 'Firebrick', '#8b0000': 'DarkRed', '#d2691e': 'Chocolate', '#f4a460': 'SandyBrown'
+};
+
+function formatKitColor(val) {
+  if (!val) return '';
+  const v = String(val).trim();
+  if (/^[A-Za-z]+$/.test(v) || /^\d+\s*,\s*\d+\s*,\s*\d+$/.test(v)) return v;
+  if (v.startsWith('#')) {
+    const hex = v.toLowerCase();
+    if (NAMED_COLORS[hex]) return NAMED_COLORS[hex];
+    if (hex.length === 7) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return `${r}, ${g}, ${b}`;
+    }
+    if (hex.length === 4) {
+      const r = parseInt(hex[1] + hex[1], 16);
+      const g = parseInt(hex[2] + hex[2], 16);
+      const b = parseInt(hex[3] + hex[3], 16);
+      return `${r}, ${g}, ${b}`;
+    }
+  }
+  return v;
+}
+
+function resolveBadgePath(clubName, clubId, clubBadgePath) {
+  const logoDir = getLogoDir();
+  let filename = '';
+  if (clubBadgePath && typeof clubBadgePath === 'string' && clubBadgePath.trim()) {
+    const trimmed = clubBadgePath.trim();
+    const parts = trimmed.split(/[/\\]/);
+    filename = parts[parts.length - 1];
+  }
+  if (!filename) {
+    const clean = String(clubName || '').replace(/[\/\\:\*\?"<>\|]/g, '').trim();
+    const fileClean = clean.replace(/\s+/g, '_');
+    filename = `${fileClean} Logo.png`;
+  }
+  if (logoDir) {
+    const cleanDir = logoDir.replace(/[/\\]+$/, '');
+    return `${cleanDir}\\${filename}`;
+  }
+  return filename;
+}
+
+function generateInitials(name) {
+  if (!name) return 'FC';
+  const words = name.replace(/[^a-zA-Z\s]/g, ' ')
+                    .split(/\s+/)
+                    .filter(w => w.length > 0 && !['of', 'and', 'the', '&'].includes(w.toLowerCase()));
+  if (!words.length) return 'FC';
+  return words.map(w => w[0].toUpperCase()).join('').slice(0, 5);
+}
+
+function generateShortName(c) {
+  if (c.nickname && c.nickname.trim()) return c.nickname.trim();
+  if (c.shortName && c.shortName.trim()) return c.shortName.trim();
+  const stripped = (c.club || '').replace(/\s*(?:F\.?C\.?|A\.?F\.?C\.?)\s*/gi, ' ').trim();
+  return stripped || c.club || '';
+}
+
+function buildKitbasherJson(clubsList) {
+  return clubsList.map(c => {
+    const clubName = c.club || '';
+    const clubIdStr = String(c.clubId || '');
+    const badgePath = resolveBadgePath(clubName, clubIdStr, c.badgePath);
+    const shortName = c.shortName || generateShortName(c);
+    const initials = c.initials || generateInitials(clubName);
+
+    const kits = [];
+
+    function addKit(kitType, slotPrefix, isKit0) {
+      const col1 = kitColorOf(clubIdStr, `${slotPrefix}1`);
+      const col2 = kitColorOf(clubIdStr, `${slotPrefix}2`) || col1;
+      const col3 = kitColorOf(clubIdStr, `${slotPrefix}3`) || col2 || col1;
+      const c1 = formatKitColor(col1) || (kitType === 0 ? 'Red' : (kitType === 1 ? 'White' : 'Yellow'));
+      const c2 = formatKitColor(col2) || (kitType === 0 ? 'White' : 'Black');
+      const c3 = formatKitColor(col3) || (kitType === 0 ? 'Black' : 'Gold');
+
+      kits.push({
+        KitType: kitType,
+        TeamName: clubName,
+        TeamId: clubIdStr,
+        KitColors: [c1, c2, c3],
+        KitTemplateDetails: {
+          Location: null,
+          Placements: null,
+          MatchEngineSettings: {
+            Location: null,
+            EnginePlacements: null,
+            TextInserts: null
+          },
+          Name: null,
+          TextInserts: null,
+          DesignType: 0
+        },
+        MainColor: c1,
+        BadgePath: badgePath,
+        ContrastBadge: null,
+        LayoutItems: null,
+        LayoutId: null,
+        IsStriped: null,
+        KitDesignType: isKit0 ? 0 : null,
+        ShortName: shortName,
+        Initials: initials,
+        ShortsBase: -1,
+        SocksBase: -1,
+        SponsorBase: -1,
+        ContrastBadgeColourBase: -1
+      });
+    }
+
+    // Kit 0: Home (always present)
+    addKit(0, 'home', true);
+
+    // Kit 1: Away
+    addKit(1, 'away', false);
+
+    // Kit 2: Third (if third colors configured)
+    const third1 = kitColorOf(clubIdStr, 'third1');
+    const third2 = kitColorOf(clubIdStr, 'third2');
+    const third3 = kitColorOf(clubIdStr, 'third3');
+    if (third1 || third2 || third3) {
+      addKit(2, 'third', false);
+    }
+
+    return {
+      Name: clubName,
+      TeamId: clubIdStr,
+      SponsorGrouping: sponsorGroupingId(getClubSponsor(c)),
+      TemplateGrouping: "",
+      LayoutId: null,
+      SavedHistory: null,
+      Selected: true,
+      Kits: kits,
+      ShortName: shortName,
+      Initials: initials
+    };
+  });
+}
+
+async function exportJson() {
+  const q = ($('search').value || '').trim();
+  const hasActiveFilter = Boolean(q || filterCountry || filterDivision || (filterGender && filterGender !== 'all') || showAllClubs);
+  const filtered = hasActiveFilter ? applyFilter(clubs) : clubs;
+  const list = sortClubs(filtered);
+  const targetList = selectedClubs.size > 0 ? list.filter(c => selectedClubs.has(String(c.clubId))) : list;
+
+  if (!targetList.length) {
+    alert('No clubs to export. Select or filter clubs first.');
+    return;
+  }
+
+  try {
+    await syncSponsorConfig(targetList);
+  } catch (err) {
+    console.warn('Could not update sponsor config before JSON export:', err);
+  }
+
+  const jsonArray = buildKitbasherJson(targetList);
+  const jsonStr = JSON.stringify(jsonArray, null, 2);
+  const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'teams.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function initPathsModal() {
+  const modal = $('paths-modal');
+  const btnOpen = $('btn-paths-config');
+  const btnClose = $('btn-close-paths-modal');
+  const btnSave = $('btn-save-paths');
+  const btnReset = $('btn-reset-paths');
+  const btnBrowseCsv = $('btn-browse-csv-dir');
+  const btnBrowseLogo = $('btn-browse-logo-dir');
+  const inputCsvName = $('input-csv-name');
+  const inputCsv = $('input-csv-dir');
+  const inputLogo = $('input-logo-dir');
+  const inputSponsorConfig = $('input-sponsor-config');
+  const chkPromptSave = $('chk-always-prompt-save');
+
+  if (!modal || !btnOpen) return;
+
+  function openModal() {
+    if (inputCsvName) inputCsvName.value = getCsvFilename();
+    if (inputCsv) inputCsv.value = getCsvDir();
+    if (inputLogo) inputLogo.value = getLogoDir();
+    if (inputSponsorConfig) inputSponsorConfig.value = getSponsorConfigPath();
+    if (chkPromptSave) chkPromptSave.checked = getPromptSave();
+    modal.classList.remove('hidden');
+  }
+
+  function closeModal() {
+    modal.classList.add('hidden');
+  }
+
+  btnOpen.addEventListener('click', openModal);
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+
+  // Close when clicking backdrop outside dialog
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeModal();
+    }
+  });
+
+  // ESC key to close
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeModal();
+    }
+  });
+
+  if (btnBrowseCsv) {
+    btnBrowseCsv.addEventListener('click', async () => {
+      try {
+        const current = (inputCsv ? inputCsv.value : '') || getCsvDir();
+        const selected = await tauriInvoke('select_directory', {
+          title: 'Select Kitbasher CSV Save Directory',
+          defaultPath: current
+        });
+        if (selected && inputCsv) {
+          inputCsv.value = selected;
+        }
+      } catch (err) {
+        console.warn('tauri select_directory failed:', err);
+        const fallback = prompt('Enter folder path for CSV export:', inputCsv ? inputCsv.value : getCsvDir());
+        if (fallback !== null && inputCsv) {
+          inputCsv.value = fallback.trim();
+        }
+      }
+    });
+  }
+
+  if (btnBrowseLogo) {
+    btnBrowseLogo.addEventListener('click', async () => {
+      try {
+        const current = (inputLogo ? inputLogo.value : '') || getLogoDir();
+        const selected = await tauriInvoke('select_directory', {
+          title: 'Select Club Logos / Badges Directory',
+          defaultPath: current
+        });
+        if (selected && inputLogo) {
+          inputLogo.value = selected;
+        }
+      } catch (err) {
+        console.warn('tauri select_directory failed:', err);
+        const fallback = prompt('Enter folder path for Club Logos:', inputLogo ? inputLogo.value : getLogoDir());
+        if (fallback !== null && inputLogo) {
+          inputLogo.value = fallback.trim();
+        }
+      }
+    });
+  }
+
+  if (btnReset) {
+    btnReset.addEventListener('click', () => {
+      if (inputCsvName) inputCsvName.value = DEFAULT_CSV_NAME;
+      if (inputCsv) inputCsv.value = DEFAULT_CSV_DIR;
+      if (inputLogo) inputLogo.value = DEFAULT_LOGO_DIR;
+      if (inputSponsorConfig) inputSponsorConfig.value = DEFAULT_SPONSOR_CONFIG_PATH;
+      if (chkPromptSave) chkPromptSave.checked = true;
+    });
+  }
+
+  if (btnSave) {
+    btnSave.addEventListener('click', () => {
+      const nameVal = inputCsvName ? inputCsvName.value.trim() : '';
+      const csvVal = inputCsv ? inputCsv.value.trim() : '';
+      const logoVal = inputLogo ? inputLogo.value.trim() : '';
+      const sponsorConfigVal = inputSponsorConfig ? inputSponsorConfig.value.trim() : '';
+      const promptVal = chkPromptSave ? chkPromptSave.checked : true;
+      setCsvFilename(nameVal);
+      setCsvDir(csvVal);
+      setLogoDir(logoVal);
+      setSponsorConfigPath(sponsorConfigVal);
+      setPromptSave(promptVal);
+      closeModal();
+      const statusEl = $('status');
+      if (statusEl) {
+        statusEl.textContent = 'Settings saved.';
+        statusEl.style.color = '#5aa9ff';
+        setTimeout(() => { updateStatus(); }, 4000);
+      }
+    });
+  }
+
+  updateExportButtonTooltip();
+}
+
+function initBadgeModal() {
+  const modal = $('badge-modal');
+  const btnOpen = $('btn-badge-location');
+  const btnClose = $('btn-close-badge-modal');
+  const btnSave = $('btn-save-quick-badge-dir');
+  const btnDefault = $('btn-default-badge-dir');
+  const btnBrowse = $('btn-browse-quick-badge-dir');
+  const input = $('input-quick-badge-dir');
+  const stats = $('badge-folder-stats');
+
+  if (!modal || !btnOpen) return;
+
+  async function checkLiveFolder(path) {
+    if (!stats) return;
+    const trimmed = (path || '').trim();
+    if (!trimmed) {
+      stats.textContent = 'Please enter or select a folder path.';
+      stats.style.color = '#888';
+      return;
+    }
+    try {
+      const res = await tauriInvoke('check_badge_directory', { dir: trimmed });
+      if (res && res.exists) {
+        if (res.count > 0) {
+          const sampleStr = (res.sample && res.sample.length) ? ` (e.g. ${res.sample.slice(0, 2).join(', ')})` : '';
+          const subfolderNote = (res.subfolders && res.subfolders > 0) ? ` across ${res.subfolders.toLocaleString()} subfolders` : '';
+          stats.textContent = `✓ Folder valid: ${res.count.toLocaleString()} badge files found (searched recursively${subfolderNote})${sampleStr}`;
+          stats.style.color = '#52c41a';
+        } else {
+          stats.textContent = '⚠️ Folder exists, but 0 badge images (.png, .svg, .jpg) were found in it or its subfolders.';
+          stats.style.color = '#faad14';
+        }
+      } else {
+        stats.textContent = '❌ Folder does not exist on disk.';
+        stats.style.color = '#ff4d4f';
+      }
+    } catch (e) {
+      stats.textContent = '';
+    }
+  }
+
+  let checkTimer = null;
+  function triggerCheck() {
+    clearTimeout(checkTimer);
+    checkTimer = setTimeout(() => {
+      if (input) checkLiveFolder(input.value);
+    }, 250);
+  }
+
+  function openModal() {
+    if (input) {
+      input.value = getLogoDir();
+      triggerCheck();
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        input.focus();
+        input.select();
+      }, 50);
+    } else {
+      modal.classList.remove('hidden');
+    }
+  }
+
+  function closeModal() {
+    modal.classList.add('hidden');
+  }
+
+  btnOpen.addEventListener('click', openModal);
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeModal();
+    }
+  });
+
+  function saveAndClose() {
+    const val = input ? input.value.trim() : '';
+    setLogoDir(val);
+    closeModal();
+    const statusEl = $('status');
+    if (statusEl) {
+      statusEl.textContent = `Badge folder set to: ${getLogoDir()}`;
+      statusEl.style.color = '#5aa9ff';
+      setTimeout(() => { updateStatus(); }, 4000);
+    }
+  }
+
+  if (input) {
+    input.addEventListener('input', triggerCheck);
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveAndClose();
+      }
+    });
+  }
+
+  if (btnBrowse) {
+    btnBrowse.addEventListener('click', async () => {
+      try {
+        const current = (input ? input.value : '') || getLogoDir();
+        const selected = await tauriInvoke('select_directory', {
+          title: 'Select Club Badges / Logos Folder',
+          defaultPath: current
+        });
+        if (selected && input) {
+          input.value = selected;
+          checkLiveFolder(selected);
+        }
+      } catch (err) {
+        console.warn('tauri select_directory failed:', err);
+        const fallback = prompt('Enter folder path for Club Badges:', input ? input.value : getLogoDir());
+        if (fallback !== null && input) {
+          input.value = fallback.trim();
+          checkLiveFolder(input.value);
+        }
+      }
+    });
+  }
+
+  if (btnDefault) {
+    btnDefault.addEventListener('click', () => {
+      if (input) {
+        input.value = DEFAULT_LOGO_DIR;
+        checkLiveFolder(DEFAULT_LOGO_DIR);
+      }
+    });
+  }
+
+  if (btnSave) {
+    btnSave.addEventListener('click', saveAndClose);
+  }
+
+  updateBadgeButtonTooltip();
+}
+
+const btnExportAs = $('btn-export-as');
+if (btnExportAs) {
+  btnExportAs.addEventListener('click', () => exportCsv(true));
+}
+const btnAutoSponsors = $('btn-auto-sponsors');
+if (btnAutoSponsors) {
+  btnAutoSponsors.addEventListener('click', autoAssignSponsorsByCountry);
+}
+const btnResetSponsors = $('btn-reset-sponsors');
+if (btnResetSponsors) {
+  btnResetSponsors.addEventListener('click', resetSponsors);
+}
+const btnExportJson = $('btn-export-json');
+if (btnExportJson) {
+  btnExportJson.addEventListener('click', exportJson);
+}
+
+initBadgeModal();
+initPathsModal();
+initTableEvents();
+loadTableCustoms();
+loadUserCustomized();
+loadKitColors();
+loadClubs();

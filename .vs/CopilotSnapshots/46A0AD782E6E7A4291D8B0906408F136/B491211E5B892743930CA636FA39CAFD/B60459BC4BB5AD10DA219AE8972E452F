@@ -1,0 +1,65 @@
+﻿@ECHO OFF
+REM ===========================================================================
+REM Script: Start FMSuperScout.cmd
+REM Purpose: Launches FMSuperScout using the best available runtime
+REM Author: FMSuperScout Team
+REM Date: 2026-09-13
+REM ===========================================================================
+TITLE FMSuperScout Launcher
+SETLOCAL
+CD /D "%~dp0"
+
+REM Configure extended memory ceiling for WebView2 (handles large 700MB+ dumps)
+SET "WV2_FLAGS=--js-flags=--max-old-space-size=4096"
+SET "WV2_DIS=--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection"
+SET "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=%WV2_FLAGS% %WV2_DIS%"
+
+REM Clean up any lingering background FMSuperScout processes owned by current user
+TASKLIST /FI "IMAGENAME eq FMSuperScout.exe" /NH 2>NUL | FIND /I "FMSuperScout.exe" >NUL
+IF %ERRORLEVEL% EQU 0 (
+    TASKKILL /F /FI "USERNAME eq %USERNAME%" /IM FMSuperScout.exe >NUL 2>&1
+)
+
+REM 1. Try launching Tauri release executable if present
+IF EXIST "%~dp0FMSuperScout.exe" (
+    START "" "%~dp0FMSuperScout.exe"
+    EXIT /B 0
+)
+IF EXIST "%~dp0src-tauri\target\release\FMSuperScout.exe" (
+    START "" "%~dp0src-tauri\target\release\FMSuperScout.exe"
+    EXIT /B 0
+)
+
+REM 2. Try launching Tauri debug executable if present
+IF EXIST "%~dp0src-tauri\target\debug\FMSuperScout.exe" (
+    START "" "%~dp0src-tauri\target\debug\FMSuperScout.exe"
+    EXIT /B 0
+)
+
+REM 3. Try launching VBS viewer script if present
+IF EXIST "%~dp0dist\stage\viewer\FMSuperScout.vbs" (
+    START "" WSCRIPT "%~dp0dist\stage\viewer\FMSuperScout.vbs"
+    EXIT /B 0
+)
+
+REM 4. Try launching node app\server.js if present
+IF EXIST "%~dp0app\server.js" (
+    SET "FMSS_APP=1"
+    WHERE node >NUL 2>&1
+    IF NOT ERRORLEVEL 1 (
+        START "" node "%~dp0app\server.js"
+        EXIT /B 0
+    )
+)
+
+REM 5. Fallback: launch cargo run in src-tauri if Cargo is present
+WHERE cargo >NUL 2>&1
+IF NOT ERRORLEVEL 1 (
+    CD /D "%~dp0src-tauri"
+    cargo run --release
+    EXIT /B 0
+)
+
+ECHO [ERROR] Could not find a suitable executable or environment to start FMSuperScout.
+PAUSE
+EXIT /B 1

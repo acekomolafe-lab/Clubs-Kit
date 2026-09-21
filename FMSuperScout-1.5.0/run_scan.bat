@@ -1,0 +1,1 @@
+python C:\Users\aceik\.gemini\antigravity-ide\brain\9b22e917-b3e1-4bff-83a5-f434de5997da\scratch\scan_3d_kits.py 47648 112233 445566 445566 > C:\Users\aceik\.gemini\antigravity-ide\brain\9b22e917-b3e1-4bff-83a5-f434de5997da\scratch\scan_results_london_new.txt

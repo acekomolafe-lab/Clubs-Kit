@@ -1,0 +1,888 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FMSuperScout — Club Kit Colours</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="logo.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #333333;
+    --panel: #292929;
+    --border: #4a4a4a;
+    --header-divider: #5a5a5a;
+    --text: #ffffff;
+    --dim: #a0a0a0;
+    --accent: #0078d7;
+    --row-selected: #9ea4aa;
+    --row-selected-border: #bdc2c7;
+    --swatch-empty: #555555;
+  }
+  * { box-sizing: border-box; }
+  .hidden { display: none !important; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.4 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    overflow-y: scroll;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    background: #252525;
+    border-bottom: 1px solid var(--border);
+  }
+  header img { width: 22px; height: 22px; }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; color: #e8e8e8; }
+  header h1 span { color: #5aa9ff; }
+  header a.back { margin-left: auto; color: #a8b2c0; text-decoration: none; font-size: 13px; }
+  header a.back:hover { color: #fff; text-decoration: underline; }
+
+  #toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background: #2b2b2b;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  #toolbar input[type=text] {
+    background: #1f1f1f;
+    border: 1px solid #555555;
+    color: #ffffff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    min-width: 250px;
+    font-size: 13px;
+    outline: none;
+  }
+  #toolbar input[type=text]:focus {
+    border-color: var(--accent);
+  }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  button.secondary {
+    background: #3a3a3a;
+    border: 1px solid #555555;
+    color: #f0f0f0;
+  }
+  #btn-export-json {
+    background: #1f4f78;
+    border: 1px solid #3174a8;
+    color: #ffffff;
+  }
+  #btn-export-json:hover {
+    background: #28679b;
+  }
+  #btn-auto-sponsors {
+    background: #4a3d1c;
+    border: 1px solid #806b2c;
+    color: #f5d978;
+  }
+  #btn-auto-sponsors:hover {
+    background: #665524;
+  }
+  #btn-badge-location {
+    background: #1c3d28;
+    border: 1px solid #2d7348;
+    color: #8ce9ad;
+    font-weight: 500;
+  }
+  #btn-badge-location:hover {
+    background: #255336;
+    border-color: #3bb36d;
+    color: #ffffff;
+  }
+  button:hover { filter: brightness(1.15); }
+  #status { color: var(--dim); font-size: 12px; margin-left: auto; }
+
+  #wrap {
+    padding: 0 16px 30px;
+    overflow-x: auto;
+  }
+  #pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 14px 0 0;
+  }
+  #pager button:disabled { opacity: .4; cursor: default; }
+  #page-info { color: var(--dim); font-size: 12px; min-width: 140px; text-align: center; }
+
+  /* Table layout matching the screenshot */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg);
+    margin-top: 6px;
+  }
+  thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    color: #dcdcdc;
+    font-size: 14px;
+    font-weight: 400;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #666666;
+    border-right: 1px solid var(--header-divider);
+    -webkit-user-select: none;
+    user-select: none;
+    white-space: nowrap;
+    z-index: 2;
+  }
+  thead th:last-child {
+    border-right: 1px solid var(--header-divider);
+  }
+  thead th.th-check {
+    width: 44px;
+    text-align: center;
+    padding: 8px 6px;
+  }
+  thead th.th-id {
+    width: 110px;
+    min-width: 95px;
+    cursor: pointer;
+  }
+  thead th.th-id:hover {
+    color: #ffffff;
+  }
+  thead th.th-name {
+    min-width: 230px;
+    cursor: pointer;
+  }
+  thead th.th-name:hover {
+    color: #ffffff;
+  }
+  thead th.th-division {
+    min-width: 170px;
+    cursor: pointer;
+  }
+  thead th.th-division:hover {
+    color: #ffffff;
+  }
+  thead th.th-country {
+    min-width: 120px;
+    cursor: pointer;
+  }
+  thead th.th-country:hover {
+    color: #ffffff;
+  }
+  thead th.sort-active {
+    color: #ffffff;
+  }
+  thead th.sort-active.sort-asc::after {
+    content: " ▲";
+    font-size: 10px;
+    color: var(--accent);
+  }
+  thead th.sort-active.sort-desc::after {
+    content: " ▼";
+    font-size: 10px;
+    color: var(--accent);
+  }
+  thead th.th-colours {
+    width: 130px;
+    min-width: 130px;
+    cursor: pointer;
+  }
+  thead th.th-colours:hover {
+    color: #ffffff;
+  }
+  thead th.th-style {
+    width: 125px;
+    min-width: 115px;
+    cursor: pointer;
+  }
+  thead th.th-style:hover {
+    color: #ffffff;
+  }
+  thead th.th-sponsor, thead th.th-template {
+    width: 85px;
+    min-width: 75px;
+    text-align: center;
+    cursor: pointer;
+  }
+  thead th.th-sponsor:hover, thead th.th-template:hover {
+    color: #ffffff;
+  }
+  thead th.th-shortname {
+    width: 100px;
+    min-width: 85px;
+    cursor: pointer;
+  }
+  thead th.th-shortname:hover {
+    color: #ffffff;
+  }
+  thead th.th-badge {
+    min-width: 160px;
+    max-width: 240px;
+    cursor: pointer;
+  }
+  thead th.th-badge:hover {
+    color: #ffffff;
+  }
+  .table-input {
+    background: #1f1f1f;
+    border: 1px solid #555555;
+    color: #ffffff;
+    padding: 3px 6px;
+    border-radius: 3px;
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .table-input:focus {
+    border-color: var(--accent);
+  }
+  tbody tr.row-selected .table-input {
+    background: #333333;
+    border-color: #777777;
+  }
+  .td-sponsor-input, .td-template-input {
+    width: 70px;
+    text-align: center;
+    font-weight: 600;
+    color: #9cdcfe;
+  }
+  .td-shortname-input {
+    width: 85px;
+    font-weight: 500;
+  }
+  .badge-location-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11.5px;
+    color: #8ce9ad;
+    background: rgba(46, 109, 73, 0.22);
+    border: 1px solid rgba(46, 109, 73, 0.45);
+    padding: 2px 7px;
+    border-radius: 3px;
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .badge-location-tag:hover {
+    background: rgba(46, 109, 73, 0.45);
+    color: #ffffff;
+  }
+  .badge-location-fallback {
+    color: #ffd591;
+    background: rgba(212, 107, 8, 0.18);
+    border-color: rgba(212, 107, 8, 0.38);
+  }
+  .kit-style-select {
+    background: #1f1f1f;
+    border: 1px solid #555555;
+    color: #ffffff;
+    padding: 3px 6px;
+    border-radius: 3px;
+    font-size: 12.5px;
+    outline: none;
+    cursor: pointer;
+    width: 105px;
+  }
+  .kit-style-select:focus {
+    border-color: var(--accent);
+  }
+  tbody tr.row-selected .kit-style-select {
+    background: #333333;
+    border-color: #777777;
+    color: #ffffff;
+  }
+  .badge-gender {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 3px;
+    margin-left: 6px;
+    vertical-align: middle;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .badge-women {
+    background: rgba(235, 77, 150, 0.22);
+    color: #ff85c0;
+    border: 1px solid rgba(235, 77, 150, 0.45);
+  }
+  .badge-men {
+    background: rgba(58, 140, 255, 0.15);
+    color: #79b8ff;
+    border: 1px solid rgba(58, 140, 255, 0.3);
+  }
+  .td-division-sub {
+    font-size: 11px;
+    color: #8f9ca8;
+    margin-top: 1px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+  }
+  .toolbar-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12.5px;
+    color: #dedede;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .toolbar-checkbox-label input {
+    cursor: pointer;
+  }
+
+  /* Filter & Grouping controls */
+  .group-control, .filter-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .toolbar-label {
+    color: var(--dim);
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  #sel-group, #sel-country, #sel-division {
+    background: #1f1f1f;
+    border: 1px solid #555555;
+    color: #ffffff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+    max-width: 220px;
+  }
+  #sel-group:focus, #sel-country:focus, #sel-division:focus {
+    border-color: var(--accent);
+  }
+
+  tbody tr.tr-group-header {
+    background: #252c35 !important;
+    border-top: 2px solid #3d4a59;
+    border-bottom: 1px solid #3d4a59;
+    height: 38px;
+    cursor: pointer;
+  }
+  tbody tr.tr-group-header:hover {
+    background: #2c3541 !important;
+  }
+  tbody tr.tr-group-header td {
+    padding: 6px 12px;
+  }
+  .group-header-content {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #e8e8e8;
+  }
+  .group-chevron {
+    display: inline-block;
+    width: 14px;
+    font-size: 11px;
+    color: #5aa9ff;
+    transition: transform 0.15s ease;
+  }
+  .group-chevron.collapsed {
+    transform: rotate(-90deg);
+  }
+  .group-title {
+    color: #ffffff;
+  }
+  .group-badge {
+    font-size: 11.5px;
+    font-weight: 400;
+    color: #a0a0a0;
+    background: rgba(255, 255, 255, 0.08);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .group-check-box {
+    margin-right: 2px;
+  }
+
+  tbody td.td-division {
+    color: #b8b8b8;
+    font-size: 13px;
+  }
+  tbody td.td-country {
+    color: #dedede;
+    font-size: 13px;
+  }
+
+  tbody tr {
+    cursor: pointer;
+    background: var(--bg);
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+    height: 33px;
+  }
+  tbody tr:hover {
+    background: #3a3a3a;
+  }
+  tbody tr.row-selected {
+    background: var(--row-selected) !important;
+    border-top: 1px solid var(--row-selected-border);
+    border-bottom: 1px solid var(--row-selected-border);
+  }
+  tbody tr.row-selected td.td-name {
+    color: #ffffff;
+    font-weight: 500;
+  }
+
+  tbody td {
+    padding: 4px 12px;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  tbody td.td-check {
+    width: 44px;
+    text-align: center;
+    padding: 4px 6px;
+  }
+  tbody td.td-id {
+    color: #c0c0c0;
+    font-size: 13.5px;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  tbody td.td-id:hover {
+    color: #5aa9ff;
+    text-decoration: underline;
+  }
+  tbody tr.row-selected td.td-id {
+    color: #ffffff;
+  }
+  tbody td.td-name {
+    color: #ffffff;
+    font-size: 14px;
+  }
+
+  /* Custom Checkbox */
+  .check-box {
+    width: 18px;
+    height: 18px;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border: 1px solid #777777;
+    background: transparent;
+    transition: background-color 0.1s, border-color 0.1s;
+    vertical-align: middle;
+  }
+  .check-box.checked {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .check-box svg {
+    width: 12px;
+    height: 12px;
+    fill: none;
+    stroke: #ffffff;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    display: none;
+  }
+  .check-box.checked svg {
+    display: block;
+  }
+  .check-box.indeterminate {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .check-box.indeterminate svg {
+    display: none;
+  }
+  .check-box.indeterminate::after {
+    content: "";
+    width: 8px;
+    height: 2px;
+    background: #ffffff;
+    border-radius: 1px;
+  }
+
+  /* 3 Rectangular Swatches per kit cell */
+  .swatches-container, .swatch-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .swatch {
+    width: 22px;
+    height: 13px;
+    border-radius: 1px;
+    display: inline-block;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: transform 0.08s, filter 0.08s;
+  }
+  .swatch:hover {
+    transform: scale(1.1);
+    filter: brightness(1.2);
+  }
+  .swatch.filled {
+    border: 1px solid rgba(0, 0, 0, 0.45);
+  }
+  .swatch.empty {
+    background: transparent !important;
+    border: 1px solid var(--swatch-empty);
+  }
+
+  #empty {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--dim);
+    font-size: 15px;
+  }
+
+  #search-prompt {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--dim);
+  }
+  .search-prompt-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+    opacity: 0.8;
+  }
+  .search-prompt-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #e0e0e0;
+    margin-bottom: 6px;
+  }
+  .search-prompt-desc {
+    font-size: 13px;
+    color: #999999;
+    line-height: 1.6;
+  }
+  #btn-show-all {
+    margin-top: 14px;
+  }
+
+  .instructions-hint {
+    font-size: 11.5px;
+    color: #888888;
+    margin-left: 6px;
+  }
+
+  /* Export Paths Modal */
+  .modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .modal-dialog {
+    background: #252525;
+    border: 1px solid #4a4a4a;
+    border-radius: 8px;
+    width: 560px;
+    max-width: 92vw;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: #1e1e1e;
+    border-bottom: 1px solid #383838;
+  }
+  .modal-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #e8e8e8;
+  }
+  .btn-close {
+    background: transparent;
+    border: none;
+    color: #888;
+    font-size: 22px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .btn-close:hover {
+    color: #fff;
+    background: #333333;
+  }
+  .modal-body {
+    padding: 20px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #ddd;
+  }
+  .input-with-button {
+    display: flex;
+    gap: 8px;
+  }
+  .input-with-button input[type=text] {
+    flex: 1;
+    background: #181818;
+    border: 1px solid #484848;
+    color: #fff;
+    padding: 7px 10px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Segoe UI Mono', monospace;
+    font-size: 12.5px;
+  }
+  .input-with-button input[type=text]:focus {
+    border-color: #0078d7;
+    outline: none;
+  }
+  .form-desc {
+    font-size: 11.5px;
+    color: #888;
+    line-height: 1.4;
+  }
+  .form-desc code {
+    background: #181818;
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #5aa9ff;
+    font-family: 'Consolas', monospace;
+  }
+  .modal-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 18px;
+    background: #1e1e1e;
+    border-top: 1px solid #383838;
+  }
+  .badge-folder-stats {
+    color: #5aa9ff;
+    font-weight: 500;
+    margin-top: 4px;
+  }
+  .form-group-checkbox-label {
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <img src="logo.svg" alt="">
+  <h1>FM<span>Super</span>Scout — Club Kit Colours</h1>
+  <a class="back" href="index.html?v=1.5.2">&larr; Back to app</a>
+</header>
+<div id="toolbar">
+  <input type="text" id="search" placeholder="Search club name, ID, division, country…" autofocus>
+  <div class="filter-control">
+    <label for="sel-gender" class="toolbar-label">Teams:</label>
+    <select id="sel-gender" title="Filter by Men or Women teams" aria-label="Filter by gender">
+      <option value="all">All Teams</option>
+      <option value="men">Men Only</option>
+      <option value="women">Women Only</option>
+    </select>
+  </div>
+  <div class="filter-control">
+    <label for="sel-country" class="toolbar-label">Country:</label>
+    <select id="sel-country" title="Filter by country" aria-label="Filter by country">
+      <option value="">All Countries</option>
+    </select>
+  </div>
+  <div class="filter-control">
+    <label for="sel-division" class="toolbar-label">Division:</label>
+    <select id="sel-division" title="Filter by division in country" aria-label="Filter by division">
+      <option value="">All Divisions</option>
+    </select>
+  </div>
+  <div class="group-control">
+    <label for="sel-group" class="toolbar-label">Group by:</label>
+    <select id="sel-group" title="Group by column" aria-label="Group by column">
+      <option value="none">None (Flat list)</option>
+      <option value="division">Division</option>
+      <option value="country">Country</option>
+    </select>
+  </div>
+  <button id="btn-toggle-all-groups" class="secondary hidden">Collapse All</button>
+  <div class="filter-control">
+    <label for="sel-bulk-style" class="toolbar-label">Kit Style:</label>
+    <select id="sel-bulk-style" title="Kit style for bulk apply" aria-label="Kit style">
+      <option value="Plain" selected>Plain</option>
+      <option value="Striped">Striped</option>
+      <option value="Hooped">Hooped</option>
+      <option value="Bicolour">Bicolour</option>
+      <option value="Sleeved">Sleeved</option>
+    </select>
+    <button id="btn-apply-style" class="secondary" title="Apply chosen style to selected clubs">Apply to Selected</button>
+  </div>
+  <button id="btn-export-as" title="Choose file name and save location (Save CSV As…)">Save CSV As…</button>
+  <button id="btn-badge-location" title="Enter or choose Club Badges Folder">🛡️ Badge Location</button>
+  <button id="btn-paths-config" class="secondary" title="Configure CSV export location & Logo folder">⚙️ Settings</button>
+  <label class="toolbar-checkbox-label" title="Differentiate women's teams by appending 'Women' (e.g. 'Arsenal Women') so Kitbasher doesn't collide with men's teams that are already imported">
+    <input type="checkbox" id="chk-suffix-women" checked>
+    <span>Suffix Women's teams</span>
+  </label>
+  <button id="btn-auto-sponsors" title="Assign Red Bull NY/My to Red Bull teams, country groups by country, and ALL as the generic fallback">Auto Sponsors by Country</button>
+  <button id="btn-reset-sponsors" class="secondary" title="Clear saved sponsor assignments and reset teams to their default sponsor">Reset Sponsors</button>
+  <button id="btn-export-json" title="Export teams in Kitbasher JSON format">Export JSON</button>
+  <button id="btn-select-all" class="secondary">Select All</button>
+  <button id="btn-deselect-all" class="secondary">Deselect All</button>
+  <span class="instructions-hint">(Left-click swatch to change, right-click to clear)</span>
+  <span id="status"></span>
+</div>
+<div id="wrap">
+  <div id="empty" class="hidden">No clubs database found. Open the main app and press F9 in-game to create a dump first.</div>
+  <div id="search-prompt" class="hidden">
+    <div class="search-prompt-icon">🔍</div>
+    <div class="search-prompt-title">Search for any club in the database</div>
+    <div class="search-prompt-desc">Type in the search box above to search by team name, unique ID, division, or country.<br><span id="db-count-label"></span></div>
+    <button id="btn-show-all" class="secondary">Browse all clubs</button>
+  </div>
+  <table id="tbl" class="hidden">
+    <thead>
+      <tr>
+        <th class="th-check"><div id="master-check" class="check-box" title="Toggle Select All"><svg viewBox="0 0 16 16"><polyline points="2.5 8.5 6 12 13.5 4.5"></polyline></svg></div></th>
+        <th class="th-name" id="th-team-name" data-key="club" title="Click to sort by Team Name">Team Name</th>
+        <th class="th-id" id="th-unique-id" data-key="clubId" title="Click to sort by Unique ID">Unique ID</th>
+        <th class="th-sponsor" id="th-sponsor" data-key="sponsor" title="Sponsor Grouping (Default: ALL)">Sponsor</th>
+        <th class="th-template" id="th-template" data-key="template" title="Template Grouping (Default: ALL)">Template</th>
+        <th class="th-shortname" id="th-shortname" data-key="shortName" title="Team Short Name">Short Name</th>
+        <th class="th-badge" id="th-badge" data-key="badge" title="File Location of Badge">Badge Location</th>
+        <th class="th-colours" id="th-home-colours" data-key="home" title="Click to sort by Home Colours">Home Colours</th>
+        <th class="th-colours" id="th-away-colours" data-key="away" title="Click to sort by Away Colours">Away Colours</th>
+        <th class="th-colours" id="th-third-colours" data-key="third" title="Click to sort by Third Colours">Third Colours</th>
+        <th class="th-style" id="th-home-style" data-key="style" title="Click to sort by Home Style">Home Style</th>
+        <th class="th-style" id="th-away-style" data-key="style-away" title="Click to sort by Away Style">Away Style</th>
+        <th class="th-style" id="th-third-style" data-key="style-third" title="Click to sort by Third Style">Third Style</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  <div id="pager" class="hidden">
+    <button id="btn-prev" class="secondary">Previous</button>
+    <span id="page-info"></span>
+    <button id="btn-next" class="secondary">Next</button>
+  </div>
+</div>
+<!-- Badge Location Dedicated Modal -->
+<div id="badge-modal" class="modal-backdrop hidden">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div class="modal-title">🛡️ Club Badges / Logos Folder</div>
+      <button id="btn-close-badge-modal" class="btn-close" type="button" title="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="input-quick-badge-dir">Enter the folder path where your club badges / logos are located:</label>
+        <div class="input-with-button">
+          <input type="text" id="input-quick-badge-dir" spellcheck="false" placeholder="C:\Users\aceik\AppData\Roaming\GeneratedKits\Badges">
+          <button id="btn-browse-quick-badge-dir" type="button" class="secondary">Browse…</button>
+        </div>
+        <div class="form-desc">
+          Kitbasher requires badge files on disk to import teams. FMSuperScout automatically searches <b>all subfolders recursively</b> to match each club by ID (e.g. <code>600.png</code>), club name (e.g. <code>Arsenal Logo.png</code>), or fallback placeholder so Kitbasher never fails badge import.
+        </div>
+        <div id="badge-folder-stats" class="form-desc badge-folder-stats"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-default-badge-dir" type="button" class="secondary">Use Default</button>
+      <button id="btn-save-quick-badge-dir" type="button">Save Location</button>
+    </div>
+  </div>
+</div>
+<!-- Paths Configuration Modal -->
+<div id="paths-modal" class="modal-backdrop hidden">
+  <div class="modal-dialog">
+    <div class="modal-header">
+      <div class="modal-title">📁 Kitbasher Export Settings</div>
+      <button id="btn-close-paths-modal" class="btn-close" type="button" title="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="input-csv-name">Default CSV File Name:</label>
+        <div class="input-with-button">
+          <input type="text" id="input-csv-name" spellcheck="false" placeholder="teams.csv">
+        </div>
+        <div class="form-desc">File name for exported CSV (e.g. <code>teams.csv</code> or <code>premier_league.csv</code>).</div>
+      </div>
+      <div class="form-group">
+        <label for="input-csv-dir">Default CSV Save Location:</label>
+        <div class="input-with-button">
+          <input type="text" id="input-csv-dir" spellcheck="false" placeholder="D:\KitbasherLegacy v0.8\TeamList">
+          <button id="btn-browse-csv-dir" type="button" class="secondary">Browse…</button>
+        </div>
+        <div class="form-desc">Directory where <code>teams.csv</code> is exported directly for Kitbasher.</div>
+      </div>
+      <div class="form-group">
+        <label for="input-logo-dir">Club Logos / Badges Location:</label>
+        <div class="input-with-button">
+          <input type="text" id="input-logo-dir" spellcheck="false" placeholder="C:\Users\aceik\AppData\Roaming\GeneratedKits\Badges">
+          <button id="btn-browse-logo-dir" type="button" class="secondary">Browse…</button>
+        </div>
+        <div class="form-desc">Directory containing club badge files. Searches all subfolders recursively. Files are matched automatically by club ID, club name, or fallback placeholder so Kitbasher never fails badge import.</div>
+      </div>
+      <div class="form-group">
+        <label for="input-sponsor-config">Sponsor Configuration File:</label>
+        <div class="input-with-button">
+          <input type="text" id="input-sponsor-config" spellcheck="false" placeholder="D:\KitbasherLegacy v0.8\Sponsors\sponsorConfig.json">
+        </div>
+        <div class="form-desc">JSON file containing the <code>SponsorGroupings</code> used by the Auto Sponsors by Country action.</div>
+      </div>
+      <div class="form-group">
+        <div class="form-desc"><b>Export save location:</b> The CSV and JSON export buttons always open a Save As dialog so you can choose the file name and folder.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="btn-reset-paths" type="button" class="secondary">Reset Defaults</button>
+      <button id="btn-save-paths" type="button">Save Settings</button>
+    </div>
+  </div>
+</div>
+<input type="color" id="hidden-picker" aria-label="Kleurkiezer / Color picker" title="Kleurkiezer">
+<script src="clubs.js?v=8"></script>
+</body>
+</html>

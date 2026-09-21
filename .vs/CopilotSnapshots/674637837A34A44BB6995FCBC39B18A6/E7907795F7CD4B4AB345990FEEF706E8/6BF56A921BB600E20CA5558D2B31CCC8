@@ -1,0 +1,41 @@
+﻿// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+mod api;
+mod clubs;
+mod history;
+mod updater;
+
+fn main() {
+    api::start_stream_server();
+    tauri::Builder::default()
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_fs::init())
+        .invoke_handler(tauri::generate_handler![
+            api::get_status,
+            api::log_debug,
+            api::get_scan_config,
+            api::set_scan_config,
+            api::get_diagnostics,
+            api::check_fmstatus,
+            api::check_setup,
+            api::trigger_refresh,
+            api::update_install,
+            api::update_status,
+            api::get_history_deltas,
+            api::get_history_series,
+            api::merge_history,
+            api::get_clubs,
+            api::get_sponsor_groupings,
+            api::save_sponsor_groupings,
+            api::get_sponsor_assignments,
+            api::save_teams_csv,
+            api::select_directory,
+            api::select_save_file,
+            api::resolve_badges,
+            api::check_badge_directory,
+            api::version_check,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}

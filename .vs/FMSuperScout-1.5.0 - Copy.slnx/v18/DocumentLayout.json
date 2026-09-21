@@ -1,0 +1,268 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\aceik\\.copilot\\plans\\plan-fix-kitbasher-zip-layout-and-skip-invalid-clubs.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}|MarkdownSecurePreview"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\aceik\\.copilot\\plans\\plan-repair-json-export-and-create-kitbasher-zip-package.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}|MarkdownSecurePreview"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\aceik\\.copilot\\plans\\plan-add-save-location-to-shortlist-export.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}|MarkdownSecurePreview"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\aceik\\.copilot\\plans\\plan-add-file-save-location-dialog-to-export-button.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}|MarkdownSecurePreview"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Projects\\FMSuperScout-1.5.0 - Copy\\.github\\copilot-instructions.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:.github\\copilot-instructions.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\clubs.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:FMSuperScout-1.5.0\\app\\clubs.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\aceik\\.copilot\\plans\\plan-align-json-export-with-the-supplied-kitbasher-template.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}|MarkdownSecurePreview"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\aceik\\.copilot\\plans\\plan-block-incomplete-team-exports.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}|MarkdownSecurePreview"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\aceik\\.copilot\\plans\\plan-persist-team-sponsor-assignments.md||{EFC0BB08-EA7D-40C6-A696-C870411A895B}|MarkdownSecurePreview"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\server.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:FMSuperScout-1.5.0\\app\\server.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\src\\api.rs||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:FMSuperScout-1.5.0\\src-tauri\\src\\api.rs||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\src\\main.rs||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:FMSuperScout-1.5.0\\src-tauri\\src\\main.rs||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\app.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:FMSuperScout-1.5.0\\app\\app.js||{14D17961-FE51-464D-9111-C4AF11D7D99A}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\Cargo.toml||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:FMSuperScout-1.5.0\\src-tauri\\Cargo.toml||{8B382828-6202-11D1-8870-0000F87579D2}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\clubs.html||{40D31677-CBC0-4297-A9EF-89D907823A98}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:FMSuperScout-1.5.0\\app\\clubs.html||{40D31677-CBC0-4297-A9EF-89D907823A98}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\tauri.conf.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:FMSuperScout-1.5.0\\src-tauri\\tauri.conf.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "copilot-instructions.md",
+              "DocumentMoniker": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\.github\\copilot-instructions.md",
+              "RelativeDocumentMoniker": ".github\\copilot-instructions.md",
+              "ToolTip": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\.github\\copilot-instructions.md",
+              "RelativeToolTip": ".github\\copilot-instructions.md",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-09-15T19:44:39.838Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "plan-fix-kitbasher-zip-layout-and-skip-invalid-clubs.md [Preview]",
+              "DocumentMoniker": "C:\\Users\\aceik\\.copilot\\plans\\plan-fix-kitbasher-zip-layout-and-skip-invalid-clubs.md",
+              "ToolTip": "C:\\Users\\aceik\\.copilot\\plans\\plan-fix-kitbasher-zip-layout-and-skip-invalid-clubs.md [Preview]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-09-15T19:14:16.46Z",
+              "EditorCaption": " [Preview]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 15,
+              "Title": "tauri.conf.json",
+              "DocumentMoniker": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\tauri.conf.json",
+              "RelativeDocumentMoniker": "FMSuperScout-1.5.0\\src-tauri\\tauri.conf.json",
+              "ToolTip": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\tauri.conf.json*",
+              "RelativeToolTip": "FMSuperScout-1.5.0\\src-tauri\\tauri.conf.json*",
+              "ViewState": "AgIAAAAAAAAAAAAAAEBVwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-09-15T17:52:07.812Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "plan-repair-json-export-and-create-kitbasher-zip-package.md [Preview]",
+              "DocumentMoniker": "C:\\Users\\aceik\\.copilot\\plans\\plan-repair-json-export-and-create-kitbasher-zip-package.md",
+              "ToolTip": "C:\\Users\\aceik\\.copilot\\plans\\plan-repair-json-export-and-create-kitbasher-zip-package.md [Preview]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-09-15T17:28:39.48Z",
+              "EditorCaption": " [Preview]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 14,
+              "Title": "clubs.html",
+              "DocumentMoniker": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\clubs.html",
+              "RelativeDocumentMoniker": "FMSuperScout-1.5.0\\app\\clubs.html",
+              "ToolTip": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\clubs.html*",
+              "RelativeToolTip": "FMSuperScout-1.5.0\\app\\clubs.html*",
+              "ViewState": "AgIAAPoCAAAAAAAAACBjwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001512|",
+              "WhenOpened": "2026-09-15T17:27:17.985Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 13,
+              "Title": "Cargo.toml",
+              "DocumentMoniker": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\Cargo.toml",
+              "RelativeDocumentMoniker": "FMSuperScout-1.5.0\\src-tauri\\Cargo.toml",
+              "ToolTip": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\Cargo.toml",
+              "RelativeToolTip": "FMSuperScout-1.5.0\\src-tauri\\Cargo.toml",
+              "ViewState": "AgIAACAAAAAAAAAAAABRwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-09-15T17:21:18.427Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "plan-add-save-location-to-shortlist-export.md [Preview]",
+              "DocumentMoniker": "C:\\Users\\aceik\\.copilot\\plans\\plan-add-save-location-to-shortlist-export.md",
+              "ToolTip": "C:\\Users\\aceik\\.copilot\\plans\\plan-add-save-location-to-shortlist-export.md [Preview]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-09-15T16:54:14.301Z",
+              "EditorCaption": " [Preview]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "app.js",
+              "DocumentMoniker": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\app.js",
+              "RelativeDocumentMoniker": "FMSuperScout-1.5.0\\app\\app.js",
+              "ToolTip": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\app.js",
+              "RelativeToolTip": "FMSuperScout-1.5.0\\app\\app.js",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAxwFYRAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2026-09-15T16:51:31.139Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "plan-add-file-save-location-dialog-to-export-button.md [Preview]",
+              "DocumentMoniker": "C:\\Users\\aceik\\.copilot\\plans\\plan-add-file-save-location-dialog-to-export-button.md",
+              "ToolTip": "C:\\Users\\aceik\\.copilot\\plans\\plan-add-file-save-location-dialog-to-export-button.md [Preview]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-09-15T16:34:17.764Z",
+              "EditorCaption": " [Preview]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "plan-align-json-export-with-the-supplied-kitbasher-template.md [Preview]",
+              "DocumentMoniker": "C:\\Users\\aceik\\.copilot\\plans\\plan-align-json-export-with-the-supplied-kitbasher-template.md",
+              "ToolTip": "C:\\Users\\aceik\\.copilot\\plans\\plan-align-json-export-with-the-supplied-kitbasher-template.md [Preview]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-09-15T15:04:44.258Z",
+              "EditorCaption": " [Preview]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "plan-block-incomplete-team-exports.md [Preview]",
+              "DocumentMoniker": "C:\\Users\\aceik\\.copilot\\plans\\plan-block-incomplete-team-exports.md",
+              "ToolTip": "C:\\Users\\aceik\\.copilot\\plans\\plan-block-incomplete-team-exports.md [Preview]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-09-15T14:54:39.235Z",
+              "EditorCaption": " [Preview]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "plan-persist-team-sponsor-assignments.md [Preview]",
+              "DocumentMoniker": "C:\\Users\\aceik\\.copilot\\plans\\plan-persist-team-sponsor-assignments.md",
+              "ToolTip": "C:\\Users\\aceik\\.copilot\\plans\\plan-persist-team-sponsor-assignments.md [Preview]",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001818|",
+              "WhenOpened": "2026-09-15T14:33:38.84Z",
+              "EditorCaption": " [Preview]"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "clubs.js",
+              "DocumentMoniker": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\clubs.js",
+              "RelativeDocumentMoniker": "FMSuperScout-1.5.0\\app\\clubs.js",
+              "ToolTip": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\clubs.js",
+              "RelativeToolTip": "FMSuperScout-1.5.0\\app\\clubs.js",
+              "ViewState": "AgIAAJoGAAAAAAAAAAAewAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2026-09-15T14:29:51.195Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "main.rs",
+              "DocumentMoniker": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\src\\main.rs",
+              "RelativeDocumentMoniker": "FMSuperScout-1.5.0\\src-tauri\\src\\main.rs",
+              "ToolTip": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\src\\main.rs",
+              "RelativeToolTip": "FMSuperScout-1.5.0\\src-tauri\\src\\main.rs",
+              "ViewState": "AgIAAB4AAAAAAAAAAIBJwCkAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-09-15T14:29:09.354Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "api.rs",
+              "DocumentMoniker": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\src\\api.rs",
+              "RelativeDocumentMoniker": "FMSuperScout-1.5.0\\src-tauri\\src\\api.rs",
+              "ToolTip": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\src-tauri\\src\\api.rs",
+              "RelativeToolTip": "FMSuperScout-1.5.0\\src-tauri\\src\\api.rs",
+              "ViewState": "AgIAADIDAAAAAAAAAABBwLADAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2026-09-15T14:29:09.24Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "server.js",
+              "DocumentMoniker": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\server.js",
+              "RelativeDocumentMoniker": "FMSuperScout-1.5.0\\app\\server.js",
+              "ToolTip": "D:\\Projects\\FMSuperScout-1.5.0 - Copy\\FMSuperScout-1.5.0\\app\\server.js",
+              "RelativeToolTip": "FMSuperScout-1.5.0\\app\\server.js",
+              "ViewState": "AgIAANMBAAAAAAAAAAAewAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001646|",
+              "WhenOpened": "2026-09-15T14:29:08.035Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

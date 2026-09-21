@@ -1,0 +1,95 @@
+using System.Globalization;
+using System.Text;
+
+namespace FMSuperScout;
+
+/// <summary>Minimalistische, snelle JSON-writer (geen dependencies).</summary>
+public sealed class JsonWriter : System.IDisposable
+{
+    private readonly StreamWriter _w;
+    private readonly StringBuilder _sb = new(1 << 16);
+    private bool _needComma;
+    private bool _closed;
+
+    public JsonWriter(string path)
+    {
+        _w = new StreamWriter(path, false, new UTF8Encoding(false), 1 << 20);
+    }
+
+    private void Sep()
+    {
+        if (_needComma) _sb.Append(',');
+        _needComma = false;
+        if (_sb.Length > (1 << 15)) { _w.Write(_sb); _sb.Clear(); }
+    }
+
+    public void BeginObj() { Sep(); _sb.Append('{'); }
+    public void EndObj() { _sb.Append('}'); _needComma = true; }
+    public void BeginArr() { Sep(); _sb.Append('['); }
+    public void EndArr() { _sb.Append(']'); _needComma = true; }
+
+    public void Key(string name)
+    {
+        Sep();
+        _sb.Append('"').Append(name).Append("\":");
+    }
+
+    public void Val(string s)
+    {
+        Sep();
+        if (s == null) { _sb.Append("null"); }
+        else
+        {
+            _sb.Append('"');
+            foreach (var c in s)
+            {
+                switch (c)
+                {
+                    case '"': _sb.Append("\\\""); break;
+                    case '\\': _sb.Append("\\\\"); break;
+                    case '\n': _sb.Append("\\n"); break;
+                    case '\r': _sb.Append("\\r"); break;
+                    case '\t': _sb.Append("\\t"); break;
+                    default:
+                        if (c < 0x20) _sb.Append("\\u").Append(((int)c).ToString("x4"));
+                        else _sb.Append(c);
+                        break;
+                }
+            }
+            _sb.Append('"');
+        }
+        _needComma = true;
+    }
+
+    public void Val(long v) { Sep(); _sb.Append(v.ToString(CultureInfo.InvariantCulture)); _needComma = true; }
+    public void Val(double v) { Sep(); _sb.Append(double.IsFinite(v) ? v.ToString("R", CultureInfo.InvariantCulture) : "null"); _needComma = true; }
+    public void Val(bool v) { Sep(); _sb.Append(v ? "true" : "false"); _needComma = true; }
+    public void Null() { Sep(); _sb.Append("null"); _needComma = true; }
+
+    // gemaksmethoden
+    public void Prop(string k, string v) { Key(k); Val(v); }   // v == null → JSON null
+    public void Prop(string k, long v) { Key(k); Val(v); }
+    public void Prop(string k, bool v) { Key(k); Val(v); }
+    public void Null4(string k) { Key(k); Null(); }
+    public void PropOpt(string k, long? v) { if (v.HasValue) { Key(k); Val(v.Value); } }
+
+    public void Close()
+    {
+        if (_closed) return;
+        _closed = true;
+        _w.Write(_sb);
+        _sb.Clear();
+        _w.Flush();
+        _w.Dispose();
+    }
+
+    // Vangnet bij een mid-write exception (volle schijf, AV-blokkade): zonder Dispose bleef
+    // de StreamWriter het .tmp-bestand vasthouden tot een willekeurige GC, waarna élke
+    // volgende dumppoging strandde op "file in use". Niets meer schrijven, alleen loslaten.
+    public void Dispose()
+    {
+        if (_closed) return;
+        _closed = true;
+        try { _w.Dispose(); } catch { }
+    }
+}

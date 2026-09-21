@@ -1,0 +1,144 @@
+﻿// FMSuperScout — standalone Club Kit Color export page.
+// Reads the same /api/dump the main app uses, groups players by club and lets the
+// user assign a kit color per club (persisted in localStorage), then exports a CSV.
+'use strict';
+const $ = id => document.getElementById(id);
+
+const KIT_KEY = 'fmss_kitcolors';
+const DEFAULT_COLOR = '#4f8cff';
+
+let clubs = [];       // [{club, division, rep, players}]
+let kitColors = {};   // { clubName: '#rrggbb' }
+let sortKey = 'club', sortDir = 1;
+
+function loadKitColors() {
+  try { kitColors = JSON.parse(localStorage.getItem(KIT_KEY) || '{}'); }
+  catch { kitColors = {}; }
+}
+function saveKitColors() {
+  try { localStorage.setItem(KIT_KEY, JSON.stringify(kitColors)); } catch { }
+}
+
+function escCsv(v) {
+  const s = String(v == null ? '' : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+async function loadClubs() {
+  $('status').textContent = 'Loading…';
+  let data;
+  try {
+    const resp = await fetch('/api/dump');
+    if (!resp.ok) throw new Error('no dump');
+    data = await resp.json();
+  } catch {
+    $('empty').classList.remove('hidden');
+    $('tbl').style.display = 'none';
+    $('status').textContent = '';
+    return;
+  }
+  const players = data.players || [];
+  const byClub = new Map();
+  for (const p of players) {
+    const name = p.club;
+    if (!name) continue;
+    let rec = byClub.get(name);
+    if (!rec) { rec = { club: name, division: p.div || '', rep: p.clubRep || 0, players: 0 }; byClub.set(name, rec); }
+    rec.players++;
+    if (!rec.division && p.div) rec.division = p.div;
+    if (p.clubRep) rec.rep = Math.max(rec.rep, p.clubRep);
+  }
+  clubs = [...byClub.values()];
+  if (!clubs.length) {
+    $('empty').classList.remove('hidden');
+    $('tbl').style.display = 'none';
+    $('status').textContent = '';
+    return;
+  }
+  $('empty').classList.add('hidden');
+  $('tbl').style.display = '';
+  $('status').textContent = `${clubs.length} clubs`;
+  render();
+}
+
+function sortClubs(list) {
+  const dir = sortDir;
+  return [...list].sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    if (typeof av === 'number' || typeof bv === 'number') return (av - bv) * dir;
+    return String(av).localeCompare(String(bv)) * dir;
+  });
+}
+
+function render() {
+  const q = ($('search').value || '').toLowerCase().trim();
+  let list = clubs;
+  if (q) list = list.filter(c => c.club.toLowerCase().includes(q) || (c.division || '').toLowerCase().includes(q));
+  list = sortClubs(list);
+  const tbody = $('tbody');
+  tbody.innerHTML = list.map(c => {
+    const color = kitColors[c.club] || DEFAULT_COLOR;
+    return `<tr data-club="${escHtml(c.club)}">
+      <td>${escHtml(c.club)}</td>
+      <td>${escHtml(c.division || '–')}</td>
+      <td class="num">${c.rep || 0}</td>
+      <td class="num">${c.players}</td>
+      <td>
+        <div class="kit-cell">
+          <span class="swatch" style="background:${color}"></span>
+          <input type="color" value="${color}" data-club="${escHtml(c.club)}">
+          <span class="hex">${color}</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('input[type=color]').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const club = e.target.dataset.club;
+      kitColors[club] = e.target.value;
+      saveKitColors();
+      const row = e.target.closest('tr');
+      row.querySelector('.swatch').style.background = e.target.value;
+      row.querySelector('.hex').textContent = e.target.value;
+    });
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function exportCsv() {
+  const list = sortClubs(clubs);
+  const rows = [['Club', 'Division', 'Reputation', 'Players', 'KitColor']];
+  for (const c of list) rows.push([c.club, c.division || '', c.rep || 0, c.players, kitColors[c.club] || DEFAULT_COLOR]);
+  const csv = rows.map(r => r.map(escCsv).join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fmsuperscout-clubs-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+document.querySelectorAll('thead th[data-key]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+    render();
+  });
+});
+$('search').addEventListener('input', render);
+$('btn-export').addEventListener('click', exportCsv);
+$('btn-reset').addEventListener('click', () => {
+  if (!confirm('Reset all assigned kit colors?')) return;
+  kitColors = {};
+  saveKitColors();
+  render();
+});
+
+loadKitColors();
+loadClubs();

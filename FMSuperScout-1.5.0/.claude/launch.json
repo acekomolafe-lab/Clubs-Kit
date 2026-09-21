@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "fmsuperscout",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["app/server.js"],
+      "port": 8765,
+      "autoPort": true
+    }
+  ]
+}

@@ -1,0 +1,181 @@
+﻿// FMSuperScout — standalone Club Kit Color export page.
+// Reads the same /api/dump the main app uses, groups players by club and lets the
+// user assign a kit color per club (persisted in localStorage), then exports a CSV.
+'use strict';
+const $ = id => document.getElementById(id);
+
+const KIT_KEY = 'fmss_kitcolors_v2';
+const KIT_KEY_LEGACY = 'fmss_kitcolors';
+const DEFAULT_HOME = '#4f8cff';
+const DEFAULT_AWAY = '#ffffff';
+const DEFAULT_THIRD = '#1a1a1a';
+const KIT_SLOTS = [
+  { key: 'home', label: 'Home kit', def: DEFAULT_HOME },
+  { key: 'away', label: 'Away kit', def: DEFAULT_AWAY },
+  { key: 'third', label: '3rd kit', def: DEFAULT_THIRD },
+];
+
+let clubs = [];       // [{clubId, club, division, rep, players}]
+let kitColors = {};   // { clubName: { home, away, third } }
+let sortKey = 'club', sortDir = 1;
+
+// Stable, deterministic club ID derived from the club name (FNV-1a hash -> hex).
+// The dump itself carries no separate club UID; the name is the only stable key
+// we have, so this hash gives each club a consistent, short identifying ID.
+function clubIdOf(name) {
+  let h = 0x811c9dc5;
+  const s = String(name || '');
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+function loadKitColors() {
+  try { kitColors = JSON.parse(localStorage.getItem(KIT_KEY) || '{}'); }
+  catch { kitColors = {}; }
+  // Migrate old single-color storage (one kit per club) into the new home/away/third shape.
+  try {
+    const legacy = JSON.parse(localStorage.getItem(KIT_KEY_LEGACY) || '{}');
+    for (const [club, hex] of Object.entries(legacy)) {
+      if (!kitColors[club]) kitColors[club] = { home: hex };
+    }
+  } catch { /* no legacy data */ }
+}
+function saveKitColors() {
+  try { localStorage.setItem(KIT_KEY, JSON.stringify(kitColors)); } catch { }
+}
+function kitColorOf(club, slot) {
+  const rec = kitColors[club];
+  const def = KIT_SLOTS.find(s => s.key === slot).def;
+  return (rec && rec[slot]) || def;
+}
+
+function escCsv(v) {
+  const s = String(v == null ? '' : v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+async function loadClubs() {
+  $('status').textContent = 'Loading…';
+  let data;
+  try {
+    const resp = await fetch('/api/clubs');
+    if (!resp.ok) throw new Error('no dump');
+    data = await resp.json();
+  } catch {
+    $('empty').classList.remove('hidden');
+    $('tbl').style.display = 'none';
+    $('status').textContent = '';
+    return;
+  }
+  clubs = (data.clubs || []).map(c => ({ ...c, clubId: clubIdOf(c.club) }));
+  if (!clubs.length) {
+    $('empty').classList.remove('hidden');
+    $('tbl').style.display = 'none';
+    $('status').textContent = '';
+    return;
+  }
+  $('empty').classList.add('hidden');
+  $('tbl').style.display = '';
+  $('status').textContent = `${clubs.length} clubs`;
+  render();
+}
+
+function sortClubs(list) {
+  const dir = sortDir;
+  return [...list].sort((a, b) => {
+    const av = a[sortKey], bv = b[sortKey];
+    if (typeof av === 'number' || typeof bv === 'number') return (av - bv) * dir;
+    return String(av).localeCompare(String(bv)) * dir;
+  });
+}
+
+function kitCellHtml(club, slot) {
+  const color = kitColorOf(club, slot);
+  return `<td>
+    <div class="kit-cell">
+      <span class="swatch" style="background:${color}"></span>
+      <input type="color" value="${color}" data-club="${escHtml(club)}" data-slot="${slot}">
+      <span class="hex">${color}</span>
+    </div>
+  </td>`;
+}
+
+function render() {
+  const q = ($('search').value || '').toLowerCase().trim();
+  let list = clubs;
+  if (q) list = list.filter(c => c.club.toLowerCase().includes(q) || (c.division || '').toLowerCase().includes(q));
+  list = sortClubs(list);
+  const tbody = $('tbody');
+  tbody.innerHTML = list.map(c => {
+    return `<tr data-club="${escHtml(c.club)}">
+      <td>${escHtml(c.clubId)}</td>
+      <td>${escHtml(c.club)}</td>
+      <td>${escHtml(c.division || '–')}</td>
+      <td class="num">${c.rep || 0}</td>
+      <td class="num">${c.players}</td>
+      ${kitCellHtml(c.club, 'home')}
+      ${kitCellHtml(c.club, 'away')}
+      ${kitCellHtml(c.club, 'third')}
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('input[type=color]').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const club = e.target.dataset.club;
+      const slot = e.target.dataset.slot;
+      if (!kitColors[club]) kitColors[club] = {};
+      kitColors[club][slot] = e.target.value;
+      saveKitColors();
+      const cell = e.target.closest('.kit-cell');
+      cell.querySelector('.swatch').style.background = e.target.value;
+      cell.querySelector('.hex').textContent = e.target.value;
+    });
+  });
+}
+
+function escHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function exportCsv() {
+  const list = sortClubs(clubs);
+  const rows = [['ClubID', 'Club', 'Division', 'Reputation', 'Players', 'HomeKit', 'AwayKit', 'ThirdKit']];
+  for (const c of list) {
+    rows.push([
+      c.clubId, c.club, c.division || '', c.rep || 0, c.players,
+      kitColorOf(c.club, 'home'), kitColorOf(c.club, 'away'), kitColorOf(c.club, 'third'),
+    ]);
+  }
+  const csv = rows.map(r => r.map(escCsv).join(',')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fmsuperscout-clubs-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+document.querySelectorAll('thead th[data-key]').forEach(th => {
+  th.addEventListener('click', () => {
+    const key = th.dataset.key;
+    if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+    render();
+  });
+});
+$('search').addEventListener('input', render);
+$('btn-export').addEventListener('click', exportCsv);
+$('btn-reset').addEventListener('click', () => {
+  if (!confirm('Reset all assigned kit colors?')) return;
+  kitColors = {};
+  saveKitColors();
+  try { localStorage.removeItem(KIT_KEY_LEGACY); } catch { }
+  render();
+});
+
+loadKitColors();
+loadClubs();

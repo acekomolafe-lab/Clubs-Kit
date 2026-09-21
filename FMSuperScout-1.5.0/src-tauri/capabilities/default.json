@@ -1,0 +1,18 @@
+{
+  "identifier": "default",
+  "description": "Capability for the main window",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "fs:default",
+      "allow": [
+        { "path": "**" },
+        { "path": "$LOCALDATA/**" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$HOME/**" }
+      ]
+    }
+  ]
+}
