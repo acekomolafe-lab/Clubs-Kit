@@ -4,8 +4,10 @@ refs/
 # Build-output
 plugin/bin/
 plugin/obj/
-dist/
+/dist/
 installer/icon-256.png
+!plugin/dist/
+!plugin/dist/**
 
 # Node
 node_modules/

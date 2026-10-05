@@ -14,17 +14,17 @@ permissions:
 
 jobs:
   build:
-    name: Build FMSuperScout (Windows x64)
+    name: Build FMSuperScout Installer (Windows x64)
     runs-on: windows-latest
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Rust
+      - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust Cache
+      - name: Rust Dependency Cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: FMSuperScout-1.5.0/src-tauri
@@ -34,48 +34,30 @@ jobs:
         with:
           node-version: 20
 
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - name: Build Tauri Backend (Release)
         working-directory: FMSuperScout-1.5.0/src-tauri
         run: cargo build --release
 
-      - name: Prepare Release Package
+      - name: Build Installer (App + Plugin)
         shell: pwsh
         run: |
-          $distDir = "FMSuperScout-dist"
-          New-Item -ItemType Directory -Force -Path $distDir | Out-Null
+          $env:PATH = "C:\Program Files (x86)\Inno Setup 6;$env:PATH"
+          powershell -NoProfile -ExecutionPolicy Bypass -File "FMSuperScout-1.5.0/installer/build-installer.ps1" -RepoRoot "."
 
-          # Copy release executable
-          Copy-Item "FMSuperScout-1.5.0/src-tauri/target/release/FMSuperScout.exe" -Destination "$distDir/FMSuperScout.exe" -Force
-
-          # Copy web frontend and documentation
-          Copy-Item "FMSuperScout-1.5.0/app" -Destination "$distDir/app" -Recurse -Force
-          if (Test-Path "FMSuperScout-1.5.0/docs") {
-            Copy-Item "FMSuperScout-1.5.0/docs" -Destination "$distDir/docs" -Recurse -Force
-          }
-
-          # Copy helper scripts and guides
-          $files = @(
-            "FMSuperScout-1.5.0/Start FMSuperScout.cmd",
-            "FMSuperScout-1.5.0/Installeer plugin.cmd",
-            "FMSuperScout-1.5.0/README.md",
-            "FMSuperScout-1.5.0/CHANGELOG.md",
-            "FMSuperScout-1.5.0/TROUBLESHOOTING.md"
-          )
-          foreach ($f in $files) {
-            if (Test-Path $f) {
-              Copy-Item $f -Destination $distDir -Force
-            }
-          }
-
-          # Create zip package
-          Compress-Archive -Path "$distDir/*" -DestinationPath "FMSuperScout-windows-x64.zip" -Force
-          Write-Host "Created release archive FMSuperScout-windows-x64.zip successfully."
-
-      - name: Upload Build Artifact
+      - name: Upload Installer Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: FMSuperScout-windows-x64
-          path: FMSuperScout-windows-x64.zip
+          name: FMSuperScout-Setup-windows-x64
+          path: |
+            FMSuperScout-1.5.0/dist/FMSuperScout-Setup.exe
+            FMSuperScout-1.5.0/dist/FMSuperScout-Setup.exe.sha256
+            FMSuperScout-1.5.0/dist/version.json
           retention-days: 14
 
   release:
@@ -86,10 +68,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Download Build Artifact
+      - name: Download Build Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: FMSuperScout-windows-x64
+          name: FMSuperScout-Setup-windows-x64
           path: ./release-assets
 
       - name: Create GitHub Release

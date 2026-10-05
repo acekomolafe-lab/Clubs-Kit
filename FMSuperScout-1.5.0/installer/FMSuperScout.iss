@@ -84,8 +84,8 @@ Source: "{#Stage}\bepinex\*"; DestDir: "{code:GetGameDir}"; Flags: recursesubdir
 Source: "{#Stage}\FMSuperScout.dll"; DestDir: "{code:GetGameDir}\BepInEx\plugins"; Flags: ignoreversion
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\FMSuperScout.vbs"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\FMSuperScout.vbs"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\FMSuperScout.exe"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\FMSuperScout.exe"; WorkingDir: "{app}"; IconFilename: "{app}\icon.ico"; Tasks: desktopicon
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
@@ -95,7 +95,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Root: HKLM; Subkey: "Software\FMSuperScout"; ValueType: string; ValueName: "GamePath"; ValueData: "{code:GetGameDir}"; Flags: uninsdeletekey
 
 [Run]
-Filename: "wscript.exe"; Parameters: """{app}\FMSuperScout.vbs"""; Description: "{cm:RunViewer}"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\FMSuperScout.exe"; Description: "{cm:RunViewer}"; Flags: postinstall nowait skipifsilent
 
 [Code]
 var
