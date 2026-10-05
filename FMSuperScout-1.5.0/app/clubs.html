@@ -717,6 +717,16 @@
   .form-group-checkbox-label {
     margin-top: 4px;
   }
+  #sel-page-size {
+    margin-left: 15px;
+    cursor: pointer;
+  }
+  .modal-title-icon {
+    width: 24px;
+    height: 24px;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
 </style>
 </head>
 <body>
@@ -822,7 +832,7 @@
     <button id="btn-prev" class="secondary">Previous</button>
     <span id="page-info"></span>
     <button id="btn-next" class="secondary">Next</button>
-    <select id="sel-page-size" class="table-input" style="margin-left: 15px; cursor: pointer;">
+    <select id="sel-page-size" class="table-input" title="Rows per page" aria-label="Rows per page">
       <option value="50">50 rows</option>
       <option value="100">100 rows</option>
       <option value="200" selected>200 rows</option>
@@ -861,7 +871,7 @@
 <div id="paths-modal" class="modal-backdrop hidden">
   <div class="modal-dialog">
     <div class="modal-header">
-      <div class="modal-title"><img src="settings-banner.png" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 8px;"> Kitbasher Export Settings</div>
+      <div class="modal-title"><img src="settings-banner.png" alt="Kitbasher Export Settings" title="Kitbasher Export Settings" class="modal-title-icon"> Kitbasher Export Settings</div>
       <button id="btn-close-paths-modal" class="btn-close" type="button" title="Close">&times;</button>
     </div>
     <div class="modal-body">
