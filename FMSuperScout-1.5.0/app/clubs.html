@@ -96,6 +96,14 @@
   #btn-auto-sponsors:hover {
     background: #665524;
   }
+  #btn-assign-templates {
+    background: #431c4f;
+    border: 1px solid #7c3196;
+    color: #e5b3ff;
+  }
+  #btn-assign-templates:hover {
+    background: #5d266e;
+  }
   #btn-badge-location {
     background: #1c3d28;
     border: 1px solid #2d7348;
@@ -750,6 +758,12 @@
   <button id="btn-toggle-all-groups" class="secondary hidden">Collapse All</button>
   <div class="filter-control">
     <label for="sel-bulk-style" class="toolbar-label">Kit Style:</label>
+    <select id="sel-bulk-style-target" title="Target kit for style apply" aria-label="Target kit">
+      <option value="Home" selected>Home</option>
+      <option value="Away">Away</option>
+      <option value="Third">Third</option>
+      <option value="All">All Kits</option>
+    </select>
     <select id="sel-bulk-style" title="Kit style for bulk apply" aria-label="Kit style">
       <option value="Plain" selected>Plain</option>
       <option value="Striped">Striped</option>
@@ -768,6 +782,8 @@
   </label>
   <button id="btn-auto-sponsors" title="Assign Red Bull NY/My to Red Bull teams, country groups by country, and ALL as the generic fallback">Auto Sponsors by Country</button>
   <button id="btn-reset-sponsors" class="secondary" title="Clear saved sponsor assignments and reset teams to their default sponsor">Reset Sponsors</button>
+  <button id="btn-assign-templates" title="Read templateConfig.json and assign template brands to clubs (synchronizing paired men and women teams)">Assign Templates</button>
+  <button id="btn-reset-templates" class="secondary" title="Reset all template assignments to default (ALL)">Reset Templates</button>
   <button id="btn-export-json" title="Export cache.json and club badges as a Kitbasher ZIP package">Export Kitbasher ZIP</button>
   <button id="btn-select-all" class="secondary">Select All</button>
   <button id="btn-deselect-all" class="secondary">Deselect All</button>
@@ -806,6 +822,13 @@
     <button id="btn-prev" class="secondary">Previous</button>
     <span id="page-info"></span>
     <button id="btn-next" class="secondary">Next</button>
+    <select id="sel-page-size" class="table-input" style="margin-left: 15px; cursor: pointer;">
+      <option value="50">50 rows</option>
+      <option value="100">100 rows</option>
+      <option value="200" selected>200 rows</option>
+      <option value="500">500 rows</option>
+      <option value="999999">All rows</option>
+    </select>
   </div>
 </div>
 <!-- Badge Location Dedicated Modal -->
@@ -838,7 +861,7 @@
 <div id="paths-modal" class="modal-backdrop hidden">
   <div class="modal-dialog">
     <div class="modal-header">
-      <div class="modal-title">📁 Kitbasher Export Settings</div>
+      <div class="modal-title"><img src="settings-banner.png" style="width: 24px; height: 24px; vertical-align: middle; margin-right: 8px;"> Kitbasher Export Settings</div>
       <button id="btn-close-paths-modal" class="btn-close" type="button" title="Close">&times;</button>
     </div>
     <div class="modal-body">
@@ -869,8 +892,17 @@
         <label for="input-sponsor-config">Sponsor Configuration File:</label>
         <div class="input-with-button">
           <input type="text" id="input-sponsor-config" spellcheck="false" placeholder="D:\KitbasherLegacy v0.8\Sponsors\sponsorConfig.json">
+          <button id="btn-browse-sponsor-config" type="button" class="secondary">Browse…</button>
         </div>
         <div class="form-desc">JSON file containing the <code>SponsorGroupings</code> used by the Auto Sponsors by Country action.</div>
+      </div>
+      <div class="form-group">
+        <label for="input-template-config">Template Configuration File:</label>
+        <div class="input-with-button">
+          <input type="text" id="input-template-config" spellcheck="false" placeholder="D:\KitbasherLegacy v0.8\Templates\KitTemplates\templateConfig.json">
+          <button id="btn-browse-template-config" type="button" class="secondary">Browse…</button>
+        </div>
+        <div class="form-desc">JSON file containing the <code>KitTemplates</code> used by the Auto Templates action.</div>
       </div>
       <div class="form-group">
         <div class="form-desc"><b>Export save location:</b> The CSV and JSON export buttons always open a Save As dialog so you can choose the file name and folder.</div>
@@ -883,6 +915,6 @@
   </div>
 </div>
 <input type="color" id="hidden-picker" aria-label="Kleurkiezer / Color picker" title="Kleurkiezer">
-<script src="clubs.js?v=8"></script>
+<script src="clubs.js?v=12"></script>
 </body>
 </html>

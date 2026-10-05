@@ -15,29 +15,41 @@ pub struct ClubRec {
     senior: bool,
 }
 
-fn load_kitbasher_cache() -> HashMap<String, (String, String, String)> {
+fn load_kitbasher_cache() -> HashMap<String, (String, String, String, String)> {
     let mut map = HashMap::new();
-    let cache_path = PathBuf::from(r"C:\Program Files\Kitbasher\cache.json");
-    if cache_path.exists() {
-        if let Ok(data) = std::fs::read_to_string(&cache_path) {
-            if let Ok(items) = serde_json::from_str::<Vec<serde_json::Value>>(&data) {
-                for item in items {
-                    let sn = item.get("ShortName").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                    let init = item.get("Initials").and_then(|v| v.as_str()).unwrap_or("").to_string();
-                    let bp = item.get("Kits").and_then(|k| k.as_array())
-                        .and_then(|arr| arr.get(0))
-                        .and_then(|k0| k0.get("BadgePath"))
-                        .and_then(|b| b.as_str()).unwrap_or("").to_string();
-
-                    if let Some(tid) = item.get("TeamId").and_then(|v| v.as_str()) {
-                        if !tid.is_empty() {
-                            map.insert(tid.to_string(), (sn.clone(), init.clone(), bp.clone()));
+    let cache_paths = [
+        PathBuf::from(r"D:\KitbasherLegacy v0.8\cache.json"),
+        PathBuf::from(r"C:\Program Files\Kitbasher\cache.json"),
+    ];
+    for cache_path in &cache_paths {
+        if cache_path.exists() {
+            if let Ok(data) = std::fs::read_to_string(cache_path) {
+                if let Ok(items) = serde_json::from_str::<Vec<serde_json::Value>>(&data) {
+                    for item in items {
+                        let mut sn = item.get("ShortName").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        if sn.is_empty() {
+                            sn = item.get("Kits").and_then(|k| k.as_array())
+                                .and_then(|arr| arr.get(0))
+                                .and_then(|k0| k0.get("ShortName"))
+                                .and_then(|s| s.as_str()).unwrap_or("").to_string();
                         }
-                    }
-                    if let Some(name) = item.get("Name").and_then(|v| v.as_str()) {
-                        let clean = name.to_lowercase().trim().to_string();
-                        if !clean.is_empty() {
-                            map.insert(clean, (sn, init, bp));
+                        let init = item.get("Initials").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                        let bp = item.get("Kits").and_then(|k| k.as_array())
+                            .and_then(|arr| arr.get(0))
+                            .and_then(|k0| k0.get("BadgePath"))
+                            .and_then(|b| b.as_str()).unwrap_or("").to_string();
+                        let tg = item.get("TemplateGrouping").and_then(|v| v.as_str()).unwrap_or("").to_string();
+
+                        if let Some(tid) = item.get("TeamId").and_then(|v| v.as_str()) {
+                            if !tid.is_empty() && !map.contains_key(tid) {
+                                map.insert(tid.to_string(), (sn.clone(), init.clone(), bp.clone(), tg.clone()));
+                            }
+                        }
+                        if let Some(name) = item.get("Name").and_then(|v| v.as_str()) {
+                            let clean = name.to_lowercase().trim().to_string();
+                            if !clean.is_empty() && !map.contains_key(&clean) {
+                                map.insert(clean, (sn, init, bp, tg));
+                            }
                         }
                     }
                 }
@@ -47,14 +59,40 @@ fn load_kitbasher_cache() -> HashMap<String, (String, String, String)> {
     map
 }
 
-fn load_badge_cache() -> HashMap<String, String> {
+pub fn load_badge_cache() -> HashMap<String, String> {
     let data_dir = crate::api::data_dir();
     let cache_file = data_dir.join("badge_cache.json");
+    let candidate_dirs = [
+        (PathBuf::from(r"D:\Sports Interactive\Football Manager 26\graphics\LOGOS\Custom Logos\Custom Logo"), 1),
+        (PathBuf::from(r"D:\Sports Interactive\Football Manager 26\graphics\LOGOS\Custom Logos\sortitoutsi\logos\clubs\normal"), 2),
+        (PathBuf::from(r"D:\Sports Interactive\Football Manager 26\graphics\LOGOS"), 3),
+        (PathBuf::from(r"D:\Sports Interactive\Football Manager 26\graphics"), 4),
+        (PathBuf::from(r"D:\Sports Interactive\Football Manager 2024\graphics"), 5),
+    ];
+
     if cache_file.exists() {
-        if let Ok(content) = std::fs::read_to_string(&cache_file) {
-            if let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&content) {
-                if !map.is_empty() {
-                    return map;
+        let cache_mtime = std::fs::metadata(&cache_file).and_then(|m| m.modified()).ok();
+        let mut is_stale = false;
+        if let Some(c_time) = cache_mtime {
+            for (dir, _) in &candidate_dirs {
+                let cfg = dir.join("config.xml");
+                if let Ok(meta) = std::fs::metadata(&cfg) {
+                    if let Ok(cfg_time) = meta.modified() {
+                        if cfg_time > c_time {
+                            is_stale = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        if !is_stale {
+            if let Ok(content) = std::fs::read_to_string(&cache_file) {
+                if let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&content) {
+                    if !map.is_empty() {
+                        return map;
+                    }
                 }
             }
         }
@@ -71,7 +109,7 @@ fn scan_graphics_badges() -> HashMap<String, String> {
 
     let candidate_dirs = [
         (PathBuf::from(r"D:\Sports Interactive\Football Manager 26\graphics\LOGOS\Custom Logos\Custom Logo"), 1),
-        (PathBuf::from(r"D:\Sports Interactive\Football Manager 26\graphics\LOGOS\Custom Logos\SORTITOUSTSI\sortitoutsi Metallic Logos\logos\clubs\normal"), 2),
+        (PathBuf::from(r"D:\Sports Interactive\Football Manager 26\graphics\LOGOS\Custom Logos\sortitoutsi\logos\clubs\normal"), 2),
         (PathBuf::from(r"D:\Sports Interactive\Football Manager 26\graphics\LOGOS"), 3),
         (PathBuf::from(r"D:\Sports Interactive\Football Manager 26\graphics"), 4),
         (PathBuf::from(r"D:\Sports Interactive\Football Manager 2024\graphics"), 5),
@@ -274,7 +312,7 @@ pub async fn get_database_clubs() -> Result<serde_json::Value, String> {
                                 .or_else(|| id.as_u64().map(|v| v.to_string()))
                                 .or_else(|| id.as_str().map(|s| s.to_string()));
 
-                            let (short_name, initials, kb_bp) = id_key
+                            let (short_name, initials, kb_bp, kb_tg) = id_key
                                 .as_ref()
                                 .and_then(|k| kb_cache.get(k))
                                 .or_else(|| kb_cache.get(&name.to_lowercase().trim().to_string()))
@@ -283,22 +321,22 @@ pub async fn get_database_clubs() -> Result<serde_json::Value, String> {
 
                             let resolved_badge_path = rc.get("badgePath")
                                 .and_then(|b| b.as_str())
-                                .filter(|s| !s.is_empty())
+                                .filter(|s| !s.is_empty() && !s.ends_with("default_badge.png"))
                                 .map(|s| s.to_string())
                                 .or_else(|| {
                                     id_key.as_ref().and_then(|k| badge_cache.get(k)).cloned()
                                 })
                                 .or_else(|| {
-                                    if !kb_bp.is_empty() { Some(kb_bp) } else { None }
+                                    if !kb_bp.is_empty() && !kb_bp.ends_with("default_badge.png") { Some(kb_bp) } else { None }
                                 })
-                                .unwrap_or_else(|| {
-                                    let clean = name.replace(|c: char| "/\\:*?\"<>|".contains(c), "").trim().replace(' ', "_");
-                                    format!(r"C:\Users\aceik\AppData\Roaming\GeneratedKits\Badges\{} Logo.png", clean)
-                                });
+                                .unwrap_or_default();
+
+                            let is_women = rc.get("isWomen").and_then(|w| w.as_bool()).unwrap_or(false);
 
                             list.push(serde_json::json!({
                                 "club": name,
                                 "clubId": id,
+                                "isWomen": is_women,
                                 "division": division,
                                 "country": country,
                                 "bgColor": bg,
@@ -319,6 +357,7 @@ pub async fn get_database_clubs() -> Result<serde_json::Value, String> {
                                 "shortName": short_name,
                                 "initials": initials,
                                 "badgePath": resolved_badge_path,
+                                "templateGrouping": if !kb_tg.is_empty() && kb_tg != "None" { kb_tg } else { "ALL".to_string() },
                             }));
                         }
                         return Ok(serde_json::json!({ "clubs": list }));
@@ -499,6 +538,7 @@ pub async fn extract_clubs(dump_path: PathBuf) -> Result<serde_json::Value, Stri
             }
         }
     }
+    let kb_cache = load_kitbasher_cache();
     let badge_cache = load_badge_cache();
     for c in &mut clubs {
         if let Some(obj) = c.as_object_mut() {
@@ -507,11 +547,25 @@ pub async fn extract_clubs(dump_path: PathBuf) -> Result<serde_json::Value, Stri
                 .and_then(|id| id.as_i64().map(|v| v.to_string())
                     .or_else(|| id.as_u64().map(|v| v.to_string()))
                     .or_else(|| id.as_str().map(|s| s.to_string())));
-            let bp = id_key.as_ref().and_then(|k| badge_cache.get(k)).cloned().unwrap_or_else(|| {
-                let clean = name.replace(|c: char| "/\\:*?\"<>|".contains(c), "").trim().replace(' ', "_");
-                format!(r"C:\Users\aceik\AppData\Roaming\GeneratedKits\Badges\{} Logo.png", clean)
-            });
+            let (short_name, initials, kb_bp, kb_tg) = id_key
+                .as_ref()
+                .and_then(|k| kb_cache.get(k))
+                .or_else(|| kb_cache.get(&name.to_lowercase().trim().to_string()))
+                .cloned()
+                .unwrap_or_default();
+            let bp = id_key.as_ref().and_then(|k| badge_cache.get(k)).cloned()
+                .or_else(|| if !kb_bp.is_empty() { Some(kb_bp) } else { None })
+                .unwrap_or_default();
             obj.insert("badgePath".to_string(), serde_json::Value::String(bp));
+            if !short_name.is_empty() {
+                obj.insert("shortName".to_string(), serde_json::Value::String(short_name));
+            }
+            if !initials.is_empty() {
+                obj.insert("initials".to_string(), serde_json::Value::String(initials));
+            }
+            if !kb_tg.is_empty() && kb_tg != "None" {
+                obj.insert("templateGrouping".to_string(), serde_json::Value::String(kb_tg));
+            }
         }
     }
     

@@ -1996,9 +1996,9 @@ function buildStaffRoles() {
     items.map(x => `<option value="${escHtml(x.v)}">${escHtml(x.l)}</option>`).join('');
   $('f-staffrole').value = cur;
 }
-const WOMEN_DIV_REGEX = /(?:\bwomen(?:'s)?\b|\bladies\b|\bf[eé]minin(?:e)?\b|\bfrauen\b|\bfemminil[ei]\b|\bfemenin[ao]\b|\bfemenil\b|\bvrouwen\b|\bdames\b|\bkvinn(?:er|ur)?\b|\bnaiset\b|\bnaisten\b|\bkvenna\b|\bmoter[uų]\b|\bsievie[sš]u\b|\b[zž]en[ay]\b|\bzhanochaya\b|\bn[oő]i\b|\bdamallsvenskan\b|\belitettan\b|\btoppserien\b|\bnwsl\b|\bwsl\b|\bw-league\b|\bfutfem\b|\biberdrola\b|\badran\b|\borlen\s+(?:ekstraliga|1\s+liga)\b|^liga\s+f\b|\bliga\s+f\s+moeve\b|\bliga\s+bpi\b|\bwk\s+league\b|\bsasol\s+league\b|\bseconde\s+ligue\b|\(w\)$|\(w\)\b|\(women\)$)/i;
+const WOMEN_DIV_REGEX = /(?:\bwomen(?:['’]?s)?\b|\bladies\b|\bf[eéè]minines?\b|\bfrauen\b|\bfemminil[ei]\b|\bfemenin[ao]\b|\bfemenil\b|\bvrouwen\b|\bdames\b|\bkvinn(?:er|ur)?\b|\bnaiset\b|\bnaisten\b|\bkvenna\b|\bmoter[uų]\b|\bsievie[sš]u\b|\b[zž]en[ay]\b|\bzhanochaya\b|\bn[oő]i\b|\bdamallsvenskan\b|\belitettan\b|\btoppserien\b|\bnwsl\b|\bwsl\b|\bw[\s-]league\b|\bwe\s+league\b|\bnorthern\s+super\s+league\b|\bfutfem\b|\biberdrola\b|\badran\b|\borlen\b|^liga\s+f\b|\bliga\s+f\s+moeve\b|\bliga\s+bpi\b|\bwk\s+league\b|\bsasol\s+league\b|\bseconde\s+ligue\b|\bark[eèé]ma\b|\bpremi[eèé]re\s+ligue\b|\bswpl\b|\bkvindeliga\b|\bkansallinen\b|\busl\s+super\s+league\b|\bgainbridge\s+super\s+league\b|\bzhinoch|\bfemra\b|\bfemrave\b|\bdamas\b|\(w\)$|\(w\)\b|\(women\)$)/i;
 
-const WOMEN_CLUB_REGEX = /(?:\bwomen(?:'s)?\b|\bladies\b|\bf[eé]minin(?:e)?\b|\bfrauen\b|\bfemminil[ei]\b|\bfemenin[ao]\b|\bfemenil\b|\bvrouwen\b|\bkvinn(?:er|ur)?\b|\bnaisten?\b|\bkvenna\b|\bmoter[uų]\b|\bsievie[sš]u\b|\b[zž]en[ay]\b|\bwfc\b|\(w\)$|\(w\)\b|\(women\)$|\(ladies\)$)/i;
+const WOMEN_CLUB_REGEX = /(?:\bwomen(?:['’]?s)?\b|\bladies\b|\blionesses\b|\blioness\b|\bf[eéè]minines?\b|\bfrauen\b|\bfemminil[ei]\b|\bfemenin[ao]\b|\bfemenil\b|\bvrouwen\b|\bkvinn(?:er|ur)?\b|\bnaisten?\b|\bkvenna\b|\bmoter[uų]\b|\bsievie[sš]u\b|\b[zž]en[ay]\b|\bwfc\b|\(w\)$|\(w\)\b|\(women\)$|\(ladies\)$|\bfemra\b|\bfemrave\b|\bzhanochaya\b|\bzhinoch)/i;
 
 const EXCLUDE_WOMEN_CLUBS = new Set([
   'association sportive baume-les-dames',
@@ -2008,7 +2008,7 @@ const EXCLUDE_WOMEN_CLUBS = new Set([
 function isWomenPerson(p) {
   if (!p) return false;
   if (p.gender === 1 || p.gender === '1') return true;
-  if (p.isWomen != null) return Boolean(p.isWomen);
+  if (p.gender === 0 || p.gender === '0') return false;
   const club = String(p.club || '').trim();
   if (EXCLUDE_WOMEN_CLUBS.has(club.toLowerCase())) return false;
   const div = String(p.div || p.division || '').trim();

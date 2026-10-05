@@ -21,3 +21,11 @@ installer/_preview-*.png
 
 # Lokale plannen/concepten (niet publiek)
 private/
+
+# Scratch files / external UI prototypes
+MainViewModel.cs
+MainWindow.axaml*
+SettingsViewModel.cs
+SettingsWindow.axaml*
+Models/
+build_and_run.bat

@@ -18,6 +18,7 @@ const APP_DIR = __dirname;
 const DATA_DIR = path.join(
   process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'FMSuperScout');
 const DEFAULT_SPONSOR_CONFIG_PATH = 'D:\\KitbasherLegacy v0.8\\Sponsors\\sponsorConfig.json';
+const DEFAULT_TEMPLATE_CONFIG_PATH = 'D:\\KitbasherLegacy v0.8\\Templates\\KitTemplates\\templateConfig.json';
 
 // App-modus (standalone venster): server sluit zichzelf af zodra het venster dicht is.
 // Het sluiten van het venster wordt betrouwbaar gemeld via /api/bye (pagehide-beacon).
@@ -511,7 +512,7 @@ const server = http.createServer(async (req, res) => {
           for (const rawName of namesToSave) {
             const name = String(rawName || '').trim();
             const key = name.toLowerCase();
-            if (!name || key === 'all' || existing.has(key) || existingIds.has(key)) continue;
+            if (!name || key === 'all' || key === 'none' || existing.has(key) || existingIds.has(key)) continue;
             config.SponsorGroupings.push({
               Id: `fmss-${Date.now()}-${config.SponsorGroupings.length}`,
               Name: name,
@@ -583,6 +584,85 @@ const server = http.createServer(async (req, res) => {
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: `Failed to read sponsor config ${configPath}: ${String(e.message || e)}` }));
+    }
+    return;
+  }
+
+  if (url.pathname === '/api/template-groupings') {
+    const configPath = url.searchParams.get('path') || DEFAULT_TEMPLATE_CONFIG_PATH;
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        let targetPath = configPath;
+        try {
+          const parsed = JSON.parse(body || '{}');
+          if (parsed.path && typeof parsed.path === 'string' && parsed.path.trim()) {
+            targetPath = parsed.path.trim();
+          }
+          if (!fs.existsSync(targetPath)) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: `Template config not found at: ${targetPath}` }));
+            return;
+          }
+          const raw = fs.readFileSync(targetPath, 'utf8');
+          const config = JSON.parse(raw);
+          if (!Array.isArray(config.TemplateGroupings)) {
+            config.TemplateGroupings = [];
+          }
+          const existing = new Set(
+            config.TemplateGroupings
+              .filter(g => g && (g.Name || g.Id))
+              .map(g => String(g.Name || g.Id || '').trim().toLowerCase())
+          );
+          let added = 0;
+          const incomingBrands = Array.isArray(parsed.brands) ? parsed.brands : [];
+          for (const brand of incomingBrands) {
+            const trimmed = String(brand || '').trim();
+            if (!trimmed || trimmed.toLowerCase() === 'all' || trimmed.toLowerCase() === 'none' || existing.has(trimmed.toLowerCase())) {
+              continue;
+            }
+            config.TemplateGroupings.push({
+              Id: trimmed,
+              Name: trimmed,
+              Brands: [trimmed]
+            });
+            existing.add(trimmed.toLowerCase());
+            added += 1;
+          }
+          if (added > 0) {
+            fs.writeFileSync(targetPath, JSON.stringify(config, null, 2) + '\n');
+          }
+
+
+
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ added }));
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: `Failed to write template config ${targetPath || configPath}: ${String(e.message || e)}` }));
+        }
+      });
+      return;
+    }
+    try {
+      if (!fs.existsSync(configPath)) {
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: `Template config not found at: ${configPath}` }));
+        return;
+      }
+      const raw = fs.readFileSync(configPath, 'utf8');
+      const parsed = JSON.parse(raw);
+      const groupings = (parsed.TemplateGroupings || []).map(group => ({
+        id: String(group.Id || group.Name || ''),
+        name: group.Name || '',
+        brands: Array.isArray(group.Brands) ? group.Brands : []
+      }));
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify(groupings));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: `Failed to read template config ${configPath}: ${String(e.message || e)}` }));
     }
     return;
   }

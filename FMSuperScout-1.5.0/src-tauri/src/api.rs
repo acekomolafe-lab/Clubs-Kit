@@ -435,6 +435,112 @@ pub fn get_sponsor_groupings(config_path: Option<String>) -> Result<Vec<SponsorG
         .collect())
 }
 
+const DEFAULT_TEMPLATE_CONFIG_PATH: &str = r"D:\KitbasherLegacy v0.8\Templates\KitTemplates\templateConfig.json";
+
+#[derive(Deserialize)]
+struct TemplateConfigFile {
+    #[serde(rename = "TemplateGroupings")]
+    template_groupings: Option<Vec<TemplateGroupingFile>>,
+}
+
+#[derive(Deserialize)]
+struct TemplateGroupingFile {
+    #[serde(rename = "Name")]
+    name: Option<String>,
+    #[serde(rename = "Id")]
+    id: Option<String>,
+    #[serde(rename = "Brands")]
+    brands: Option<Vec<String>>,
+}
+
+#[derive(Serialize)]
+pub struct TemplateGroupingInfo {
+    pub id: String,
+    pub name: String,
+    pub brands: Vec<String>,
+}
+
+#[derive(Serialize)]
+pub struct SaveTemplateGroupingsResult {
+    pub added: usize,
+}
+
+#[command]
+pub fn get_template_groupings(config_path: Option<String>) -> Result<Vec<TemplateGroupingInfo>, String> {
+    let path = config_path
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_TEMPLATE_CONFIG_PATH.to_string());
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read template config {}: {}", path, e))?;
+    let config: TemplateConfigFile = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse template config {}: {}", path, e))?;
+
+    Ok(config
+        .template_groupings
+        .unwrap_or_default()
+        .into_iter()
+        .map(|group| TemplateGroupingInfo {
+            id: group.id.unwrap_or_else(|| group.name.clone().unwrap_or_default()),
+            name: group.name.unwrap_or_default(),
+            brands: group.brands.unwrap_or_default(),
+        })
+        .collect())
+}
+
+#[command]
+pub fn save_template_groupings(
+    config_path: Option<String>,
+    brands: Vec<String>,
+) -> Result<SaveTemplateGroupingsResult, String> {
+    let path = config_path
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or_else(|| DEFAULT_TEMPLATE_CONFIG_PATH.to_string());
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read template config {}: {}", path, e))?;
+    let mut config: serde_json::Value = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse template config {}: {}", path, e))?;
+    let groupings = config
+        .get_mut("TemplateGroupings")
+        .and_then(serde_json::Value::as_array_mut)
+        .ok_or_else(|| format!("TemplateGroupings array is missing in {}", path))?;
+
+    let existing: std::collections::HashSet<String> = groupings
+        .iter()
+        .filter_map(|group| {
+            group.get("Name").and_then(serde_json::Value::as_str)
+                .or_else(|| group.get("Id").and_then(serde_json::Value::as_str))
+        })
+        .map(|s| s.trim().to_lowercase())
+        .collect();
+
+    let mut added = 0;
+    for brand in &brands {
+        let trimmed = brand.trim();
+        if trimmed.is_empty()
+            || trimmed.eq_ignore_ascii_case("ALL")
+            || trimmed.eq_ignore_ascii_case("None")
+            || existing.contains(&trimmed.to_lowercase())
+        {
+            continue;
+        }
+        groupings.push(serde_json::json!({
+            "Id": trimmed,
+            "Name": trimmed,
+            "Brands": vec![trimmed]
+        }));
+        added += 1;
+    }
+
+    if added > 0 {
+        let updated = serde_json::to_string_pretty(&config)
+            .map_err(|e| format!("Failed to serialize template config {}: {}", path, e))?;
+        fs::write(&path, updated)
+            .map_err(|e| format!("Failed to write template config {}: {}", path, e))?;
+    }
+
+    Ok(SaveTemplateGroupingsResult { added })
+}
+
 #[derive(Serialize)]
 pub struct SaveSponsorGroupingsResult {
     pub added: usize,
@@ -461,7 +567,7 @@ pub fn save_sponsor_groupings(config_path: Option<String>, names: Vec<String>) -
     let mut added = 0;
     for name in names {
         let trimmed = name.trim();
-        if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("ALL") || existing.contains(&trimmed.to_lowercase()) {
+        if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("ALL") || trimmed.eq_ignore_ascii_case("NONE") || existing.contains(&trimmed.to_lowercase()) {
             continue;
         }
         groupings.push(serde_json::json!({
@@ -488,6 +594,7 @@ pub struct ClubBadgeQuery {
     pub name: String,
     #[serde(alias = "existing_path")]
     pub existing_path: Option<String>,
+    pub paired_id: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -534,6 +641,19 @@ fn badge_file_score(path: &std::path::Path) -> i32 {
     score
 }
 
+// Valid 1x1 transparent PNG bytes (120 bytes, valid IDAT CRC for ImageMagick)
+pub const TRANSPARENT_PNG: [u8; 120] = [
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48,
+    0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00,
+    0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x01, 0x73, 0x52, 0x47, 0x42, 0x00,
+    0xae, 0xce, 0x1c, 0xe9, 0x00, 0x00, 0x00, 0x04, 0x67, 0x41, 0x4d, 0x41, 0x00, 0x00,
+    0xb1, 0x8f, 0x0b, 0xfc, 0x61, 0x05, 0x00, 0x00, 0x00, 0x09, 0x70, 0x48, 0x59, 0x73,
+    0x00, 0x00, 0x0e, 0xc3, 0x00, 0x00, 0x0e, 0xc3, 0x01, 0xc7, 0x6f, 0xa8, 0x64, 0x00,
+    0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x18, 0x57, 0x63, 0xf8, 0xff, 0xff, 0x3f,
+    0x03, 0x00, 0x08, 0xfc, 0x02, 0xfe, 0x88, 0x5f, 0x06, 0xe0, 0x00, 0x00, 0x00, 0x00,
+    0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
+];
+
 #[command]
 pub fn resolve_badges(
     badge_dir: String,
@@ -546,28 +666,17 @@ pub fn resolve_badges(
 
     // Ensure a default fallback badge exists so Kitbasher never fails File.Exists check
     let default_badge_path = base_dir.join("default_badge.png");
-    // Valid 1x1 transparent PNG bytes (120 bytes, valid IDAT CRC for ImageMagick)
-    let transparent_png: [u8; 120] = [
-        0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48,
-        0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00,
-        0x00, 0x1f, 0x15, 0xc4, 0x89, 0x00, 0x00, 0x00, 0x01, 0x73, 0x52, 0x47, 0x42, 0x00,
-        0xae, 0xce, 0x1c, 0xe9, 0x00, 0x00, 0x00, 0x04, 0x67, 0x41, 0x4d, 0x41, 0x00, 0x00,
-        0xb1, 0x8f, 0x0b, 0xfc, 0x61, 0x05, 0x00, 0x00, 0x00, 0x09, 0x70, 0x48, 0x59, 0x73,
-        0x00, 0x00, 0x0e, 0xc3, 0x00, 0x00, 0x0e, 0xc3, 0x01, 0xc7, 0x6f, 0xa8, 0x64, 0x00,
-        0x00, 0x00, 0x0d, 0x49, 0x44, 0x41, 0x54, 0x18, 0x57, 0x63, 0xf8, 0xff, 0xff, 0x3f,
-        0x03, 0x00, 0x08, 0xfc, 0x02, 0xfe, 0x88, 0x5f, 0x06, 0xe0, 0x00, 0x00, 0x00, 0x00,
-        0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82,
-    ];
     let needs_write = match fs::metadata(&default_badge_path) {
         Ok(m) => m.len() != 120,
         Err(_) => true,
     };
     if needs_write {
-        let _ = fs::write(&default_badge_path, &transparent_png);
+        let _ = fs::write(&default_badge_path, &TRANSPARENT_PNG);
     }
 
     // Recursively scan badge directory and all subfolders (up to 12 levels)
     let mut scanned_files: Vec<PathBuf> = Vec::new();
+    let mut config_files: Vec<PathBuf> = Vec::new();
     let mut stack: Vec<(PathBuf, usize)> = vec![(base_dir.clone(), 0)];
 
     while let Some((current_dir, depth)) = stack.pop() {
@@ -586,12 +695,75 @@ pub fn resolve_badges(
                     } else if ft.is_file() {
                         if is_badge_file(&name_str) {
                             scanned_files.push(entry.path());
+                        } else if name_str.eq_ignore_ascii_case("config.xml") {
+                            config_files.push(entry.path());
                         }
                     }
                 }
             }
         }
     }
+
+    let mut config_xml_map: std::collections::HashMap<String, PathBuf> = std::collections::HashMap::new();
+    for cfg in config_files {
+        let parent = match cfg.parent() {
+            Some(p) => p.to_path_buf(),
+            None => continue,
+        };
+        if let Ok(content) = fs::read_to_string(&cfg) {
+            let mut pos = 0;
+            while let Some(record_start) = content[pos..].find("<record") {
+                let actual_start = pos + record_start;
+                let record_end = match content[actual_start..].find('>') {
+                    Some(idx) => actual_start + idx + 1,
+                    None => break,
+                };
+                let record = &content[actual_start..record_end];
+                pos = record_end;
+
+                let from_str = if let Some(idx) = record.find("from=\"") {
+                    let start = idx + 6;
+                    if let Some(end) = record[start..].find('"') {
+                        &record[start..start + end]
+                    } else { continue; }
+                } else { continue; };
+
+                let to_str = if let Some(idx) = record.find("to=\"") {
+                    let start = idx + 4;
+                    if let Some(end) = record[start..].find('"') {
+                        &record[start..start + end]
+                    } else { continue; }
+                } else { continue; };
+
+                if to_str.contains("/background") { continue; }
+
+                let prefix = "graphics/pictures/club/";
+                let club_part = if let Some(idx) = to_str.find(prefix) {
+                    &to_str[idx + prefix.len()..]
+                } else { continue; };
+
+                let slash_idx = match club_part.find('/') {
+                    Some(i) => i,
+                    None => continue,
+                };
+                let club_id = &club_part[..slash_idx];
+                if club_id.is_empty() || !club_id.chars().all(|c| c.is_ascii_digit()) {
+                    continue;
+                }
+
+                for ext in &[".png", ".svg", ".jpg", ".jpeg", ""] {
+                    let fname = format!("{}{}", from_str, ext);
+                    let candidate = parent.join(&fname);
+                    if candidate.is_file() {
+                        config_xml_map.entry(club_id.to_string()).or_insert(candidate);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    let graphics_badge_cache = crate::clubs::load_badge_cache();
 
     let mut files_by_name: std::collections::HashMap<String, PathBuf> = std::collections::HashMap::new();
     let mut files_by_stem: std::collections::HashMap<String, PathBuf> = std::collections::HashMap::new();
@@ -662,37 +834,96 @@ pub fn resolve_badges(
     for c in clubs {
         let mut resolved_path: Option<PathBuf> = None;
 
-        // 1. Check existing_path if given and valid
+        // 1. Check existing_path if given, valid, and not default fallback
         if let Some(p) = &c.existing_path {
-            let existing = PathBuf::from(p);
-            if existing.exists() {
-                resolved_path = Some(existing);
-            } else if let Some(fname) = existing.file_name().and_then(|n| n.to_str()) {
-                let name_lower = fname.to_lowercase();
-                if let Some(matched) = files_by_name.get(&name_lower) {
-                    resolved_path = Some(matched.clone());
+            let p_lower = p.to_lowercase();
+            let is_fallback = p_lower.ends_with("default_badge.png") || p_lower == "default_badge.png";
+            if !is_fallback {
+                let existing = PathBuf::from(p);
+                if existing.exists() {
+                    resolved_path = Some(existing);
+                } else if let Some(fname) = existing.file_name().and_then(|n| n.to_str()) {
+                    let name_lower = fname.to_lowercase();
+                    if let Some(matched) = files_by_name.get(&name_lower) {
+                        resolved_path = Some(matched.clone());
+                    }
                 }
             }
         }
 
-        // 2. Check by ID (e.g. 602.png, 602.svg, club_602.png in any subfolder)
+        // 2. Check config.xml mapping & graphics badge cache for club ID and paired ID
         if resolved_path.is_none() && !c.id.is_empty() {
-            if let Some(matched) = files_by_id.get(&c.id) {
-                resolved_path = Some(matched.clone());
-            } else if let Some(matched) = files_by_stem.get(&c.id.to_lowercase()) {
-                resolved_path = Some(matched.clone());
-            } else {
-                for ext in &[".png", ".svg", ".jpg", ".jpeg"] {
-                    let candidate1 = format!("{}{}", c.id.to_lowercase(), ext);
-                    if let Some(matched) = files_by_name.get(&candidate1) {
-                        resolved_path = Some(matched.clone());
+            let mut ids_to_check = vec![c.id.clone()];
+            if let Some(ref pid) = c.paired_id {
+                if !pid.is_empty() {
+                    ids_to_check.push(pid.clone());
+                }
+            }
+            if let Ok(num) = c.id.parse::<u64>() {
+                if num >= 2000000000 {
+                    ids_to_check.push((num - 2000000000).to_string());
+                } else {
+                    ids_to_check.push((num + 2000000000).to_string());
+                }
+            }
+
+            for check_id in &ids_to_check {
+                if let Some(mapped) = config_xml_map.get(check_id) {
+                    if mapped.exists() {
+                        resolved_path = Some(mapped.clone());
                         break;
                     }
-                    let candidate2 = format!("club_{}{}", c.id.to_lowercase(), ext);
-                    if let Some(matched) = files_by_name.get(&candidate2) {
-                        resolved_path = Some(matched.clone());
+                }
+                if let Some(cached_path) = graphics_badge_cache.get(check_id) {
+                    let pb = PathBuf::from(cached_path);
+                    if pb.exists() {
+                        resolved_path = Some(pb);
                         break;
                     }
+                }
+            }
+        }
+
+        // 3. Check by direct ID in files (e.g. 602.png, 602.svg, club_602.png in any subfolder)
+        if resolved_path.is_none() && !c.id.is_empty() {
+            let mut ids_to_check = vec![c.id.clone()];
+            if let Some(ref pid) = c.paired_id {
+                if !pid.is_empty() {
+                    ids_to_check.push(pid.clone());
+                }
+            }
+            if let Ok(num) = c.id.parse::<u64>() {
+                if num >= 2000000000 {
+                    ids_to_check.push((num - 2000000000).to_string());
+                } else {
+                    ids_to_check.push((num + 2000000000).to_string());
+                }
+            }
+            
+            for check_id in ids_to_check {
+                if let Some(matched) = files_by_id.get(&check_id) {
+                    resolved_path = Some(matched.clone());
+                    break;
+                } else if let Some(matched) = files_by_stem.get(&check_id.to_lowercase()) {
+                    resolved_path = Some(matched.clone());
+                    break;
+                } else {
+                    let mut found = false;
+                    for ext in &[".png", ".svg", ".jpg", ".jpeg"] {
+                        let candidate1 = format!("{}{}", check_id.to_lowercase(), ext);
+                        if let Some(matched) = files_by_name.get(&candidate1) {
+                            resolved_path = Some(matched.clone());
+                            found = true;
+                            break;
+                        }
+                        let candidate2 = format!("club_{}{}", check_id.to_lowercase(), ext);
+                        if let Some(matched) = files_by_name.get(&candidate2) {
+                            resolved_path = Some(matched.clone());
+                            found = true;
+                            break;
+                        }
+                    }
+                    if found { break; }
                 }
             }
         }
@@ -801,17 +1032,30 @@ pub fn save_kitbasher_zip(
     let mut badge_files: std::collections::HashMap<String, (String, PathBuf, String)> =
         std::collections::HashMap::new();
     for raw_path in badge_paths {
-        let source_path = PathBuf::from(&raw_path);
-        if !source_path.is_file() {
-            return Err(format!("Badge file does not exist: {}", source_path.display()));
+        if raw_path.trim().is_empty() {
+            continue;
         }
-
+        let source_path = PathBuf::from(&raw_path);
         let file_name = source_path
             .file_name()
             .and_then(|name| name.to_str())
             .filter(|name| !name.is_empty())
-            .ok_or_else(|| format!("Invalid badge file name: {}", source_path.display()))?
+            .unwrap_or("default_badge.png")
             .to_string();
+
+        let is_default = file_name.eq_ignore_ascii_case("default_badge.png");
+        if !source_path.is_file() {
+            if is_default {
+                if let Some(parent) = source_path.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+                let _ = fs::write(&source_path, &TRANSPARENT_PNG);
+            } else {
+                eprintln!("Warning: badge file does not exist: {}", source_path.display());
+                continue;
+            }
+        }
+
         let name_key = file_name.to_lowercase();
         let source_key = fs::canonicalize(&source_path)
             .unwrap_or_else(|_| source_path.clone())
@@ -849,8 +1093,11 @@ pub fn save_kitbasher_zip(
     // We write both the Windows backslash entry (for Kitbasher on Windows)
     // and standard forward-slash entry (for generic ZIP tools and cross-platform extractors).
     for (file_name, source_path, _) in badge_files.values() {
-        let badge_bytes = fs::read(source_path)
-            .map_err(|e| format!("Failed to read badge {}: {}", source_path.display(), e))?;
+        let badge_bytes = if file_name.eq_ignore_ascii_case("default_badge.png") && !source_path.is_file() {
+            TRANSPARENT_PNG.to_vec()
+        } else {
+            fs::read(source_path).unwrap_or_else(|_| TRANSPARENT_PNG.to_vec())
+        };
 
         // 1. Windows backslash entry required by Kitbasher's Path.Combine("Badges", ...)
         let win_entry = format!(r"Badges\{}", file_name);
@@ -865,6 +1112,21 @@ pub fn save_kitbasher_zip(
             .map_err(|e| format!("Failed to add badge {} to ZIP: {}", file_name, e))?;
         zip.write_all(&badge_bytes)
             .map_err(|e| format!("Failed to write badge {} to ZIP: {}", file_name, e))?;
+    }
+
+    // Ensure default_badge.png is in the ZIP archive if cache.json mentions it and wasn't added
+    if cache_json.contains("default_badge.png") && !badge_files.contains_key("default_badge.png") {
+        let win_entry = r"Badges\default_badge.png";
+        zip.start_file(win_entry, options())
+            .map_err(|e| format!("Failed to add default_badge.png to ZIP: {}", e))?;
+        zip.write_all(&TRANSPARENT_PNG)
+            .map_err(|e| format!("Failed to write default_badge.png to ZIP: {}", e))?;
+
+        let unix_entry = "Badges/default_badge.png";
+        zip.start_file(unix_entry, options())
+            .map_err(|e| format!("Failed to add default_badge.png to ZIP: {}", e))?;
+        zip.write_all(&TRANSPARENT_PNG)
+            .map_err(|e| format!("Failed to write default_badge.png to ZIP: {}", e))?;
     }
 
     zip.finish()
@@ -952,6 +1214,43 @@ pub fn select_save_file(
         path_str
     });
     log_to_file(&format!("select_save_file returning: {:?}", res));
+    Ok(res)
+}
+
+#[command]
+pub fn select_open_file(
+    title: Option<String>,
+    default_dir: Option<String>,
+    filter_name: Option<String>,
+    filter_ext: Option<String>,
+) -> Result<Option<String>, String> {
+    log_to_file(&format!(
+        "select_open_file called: title={:?}, default_dir={:?}, filter_name={:?}, filter_ext={:?}",
+        title, default_dir, filter_name, filter_ext
+    ));
+    let mut dialog = rfd::FileDialog::new();
+    if let Some(t) = &title {
+        dialog = dialog.set_title(t);
+    }
+    if let Some(dir) = &default_dir {
+        let trimmed = dir.trim();
+        if !trimmed.is_empty() {
+            let path = PathBuf::from(trimmed);
+            if path.exists() {
+                dialog = dialog.set_directory(&path);
+            } else if let Some(parent) = path.parent() {
+                if parent.exists() {
+                    dialog = dialog.set_directory(parent);
+                }
+            }
+        }
+    }
+    if let (Some(name), Some(ext)) = (&filter_name, &filter_ext) {
+        let exts = [ext.as_str()];
+        dialog = dialog.add_filter(name, &exts);
+    }
+    let res = dialog.pick_file().map(|p| p.to_string_lossy().to_string());
+    log_to_file(&format!("select_open_file returning: {:?}", res));
     Ok(res)
 }
 
